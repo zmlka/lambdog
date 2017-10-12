@@ -6,26 +6,21 @@ var uname = "dummyname";
 var pword = "dummypass";
 
 var github = new GitHubApi({
-  // optional
   debug: true,
-  //pathPrefix: "/api/v3", // for some GHEs; none for GitHub
-  //protocol: "https",
-  //port: 9898,
-  //ca: "whatever",
   headers: {
       "Accept": "application/vnd.github.v3+json"
   }
-  //requestMedia: "application/vnd.github.something-custom",
-  //followRedirects: false, // default: true; there's currently an issue with non-get redirects, so allow disabling follow-redirects
-}).authenticate({
-    type: "basic",
-    username: uname,
-    password: pword
+});
+
+github.authenticate({
+        type: "basic",
+        username: uname,
+        password: pword
 });
 
 exports._getFollowers = function(username){
     return function(onError, onSuccess) {
-        github.users.getFollowingForUser({ username: username }, function(err, res){
+        github.issues.getForRepo({ owner: "zmlka", repo: "lambdog"}, function(err, res){
             if (err != null) {
                 onError(err);
             } else {
