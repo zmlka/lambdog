@@ -1,11 +1,16 @@
 module GitHub.Api where
 
-import Control.Monad.Aff
 import Prelude
-import Control.Monad.Aff.Compat (EffFnAff(..), fromEffFnAff)
+import Control.Monad.Aff (Aff)
+import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
 import Data.Foreign (Foreign)
 
-foreign import _getFollowers :: forall eff. String -> EffFnAff eff Foreign
+foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
 
-getFollowers :: forall eff. String -> Aff eff Foreign
-getFollowers = fromEffFnAff <<< _getFollowers
+issuesGetForRepo :: forall eff. Foreign -> Aff eff Foreign
+issuesGetForRepo = fromEffFnAff <<< _issuesGetForRepo
+
+foreign import _pullRequestsGetReviews :: forall eff. Foreign -> EffFnAff eff Foreign
+
+pullRequestsGetReviews :: forall eff. Foreign -> Aff eff Foreign
+pullRequestsGetReviews = fromEffFnAff <<< _pullRequestsGetReviews
