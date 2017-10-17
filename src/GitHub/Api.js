@@ -1,6 +1,10 @@
 "use strict";
 
 var GitHubApi = require("github");
+var fs = require('fs');
+
+// read the credentials:
+var creds = JSON.parse(fs.readFileSync('github_credentials.json', 'utf8'));
 
 // Setup the GitHub API
 
@@ -13,12 +17,11 @@ var github = new GitHubApi({
 
 // Authentical using token set in env:
 
-var token = process.env.LAMBDOG_GITHUB_TOKEN;
+var token = creds.token;
 
-if (!token) {
+if (! token) {
     console.log("WARNING: Env variable not set: LAMBDOG_GITHUB_TOKEN");
 }
-
 github.authenticate({
     type: "oauth",
     token: token
@@ -46,3 +49,4 @@ var makeExport1 = function(f){
 
 exports._issuesGetForRepo = makeExport1(github.issues.getForRepo);
 exports._pullRequestsGetReviews = makeExport1(github.pullRequests.getReviews);
+exports._issuesGetComments = makeExport1(github.issues.getComments);
