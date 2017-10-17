@@ -1,36 +1,52 @@
 "use strict";
 
 var GitHubApi = require("github");
+var fs = require('fs');
 
-var uname = "dummyname";
-var pword = "dummypass";
+// read the credentials:
+var creds = JSON.parse(fs.readFileSync('github_credentials.json', 'utf8'));
+
+// Setup the GitHub API
 
 var github = new GitHubApi({
-  debug: true,
+  //debug: true,
   headers: {
       "Accept": "application/vnd.github.v3+json"
   }
 });
 
+// Authentical using token set in env:
+
+var token = creds.token;
+
+if (! token) {
+    console.log("WARNING: Env variable not set: LAMBDOG_GITHUB_TOKEN");
+}
 github.authenticate({
-        type: "basic",
-        username: uname,
-        password: pword
+    type: "oauth",
+    token: token
 });
 
-exports._getFollowers = function(username){
-    return function(onError, onSuccess) {
-        github.issues.getForRepo({ owner: "zmlka", repo: "lambdog"}, function(err, res){
-            if (err != null) {
-                onError(err);
-            } else {
-                onSuccess(res);
-            }
-            // Return a canceler, which is just another Aff effect.
-            return function (cancelError, cancelerError, cancelerSuccess) {
-                // now way to cancel this?
-                cancelerSuccess(); // invoke the success callback for the canceler
-            };
-        });
+// Helper function to export to purescript-aff
+var makeExport1 = function(f){
+    return function(o){
+        return function(onError, onSuccess) {
+            f(o, function(err, res){
+                if (err != null) {
+                    onError(err);
+                } else {
+                    onSuccess(res);
+                }
+                // Return a canceler, which is just another Aff effect.
+                return function (cancelError, cancelerError, cancelerSuccess) {
+                    // now way to cancel this?
+                    cancelerSuccess(); // invoke the success callback for the canceler
+                };
+            });
+        };
     };
 };
+
+exports._issuesGetForRepo = makeExport1(github.issues.getForRepo);
+exports._pullRequestsGetReviews = makeExport1(github.pullRequests.getReviews);
+exports._issuesGetComments = makeExport1(github.issues.getComments);

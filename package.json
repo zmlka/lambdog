@@ -1,27 +1,15 @@
 {
-  "name": "lambdog",
-  "version": "0.0.0",
+  "name": "google-nodejs",
+  "version": "0.1.0",
   "description": "",
   "main": "index.js",
-  "directories": {
-    "test": "test"
-  },
-  "dependencies": {
-    "bluebird": "^3.5.1",
-    "github": "^11.0.0"
-  },
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/zmlka/lambdog.git"
-  },
-  "author": "James Haydon",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/zmlka/lambdog/issues"
-  },
-  "homepage": "https://github.com/zmlka/lambdog#readme"
+  "author": "serverless.com",
+  "license": "MIT",
+  "dependencies": {
+    "serverless-google-cloudfunctions": "^1.1.0",
+    "github": "^11.0.0"
+  }
 }
