@@ -14,7 +14,6 @@ foreign import data EXPRESS :: Effect
 -- | and ExpressM in rare cases.
 type ExpressM e a = Eff (express :: EXPRESS | e) a
 
-
 foreign import data Application :: Type
 foreign import data Event :: Type
 foreign import data Response :: Type

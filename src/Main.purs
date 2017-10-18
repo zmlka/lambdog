@@ -10,35 +10,30 @@ import Serverless.Response
 import Serverless.Types
 
 import Control.Monad.Aff (Aff, launchAff, launchAff_, liftEff', runAff)
-import Control.Monad.Aff.Console (log)
+import Control.Monad.Aff.Console (CONSOLE, log)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Console as EffConsole
 import Control.Monad.Except (runExcept)
-import Data.Foreign (toForeign)
+import Data.Foreign (F, Foreign, toForeign)
 import Data.Foreign.Class (class Decode, decode)
 import Data.Foreign.Generic (defaultOptions, genericDecode)
 import Data.Foreign.Generic.Types (Options)
 import Data.Function.Uncurried (runFn2)
 import Data.Generic.Rep (class Generic)
 
-bla :: forall eff. Int -> Aff (console :: CONSOLE | eff) Unit
-bla n = do
-  let pr =toForeign {owner: "zmlka", repo: "lambdog", number: n}
-  comments <- issuesGetComments pr
+bla :: forall eff. PR -> Aff eff (Either String (Array String))
+bla (PR pr) = do
+  let prReq = toForeign pr
+  comments <- issuesGetComments prReq
   let _cs = commentStrings comments
   case _cs of
-    Left err -> log err
-    Right cs -> do
-      let n = isApprovalCount cs
-      traceShow cs (\_ -> pure unit)
-      log "hello"
-
-checkPR :: forall e. Int -> Eff (console :: CONSOLE | e) Unit
-checkPR n = launchAff_ (bla n)
+    Left err -> pure (Left "error decoding comments")
+    Right cs -> pure (Right cs)
 
 main :: forall e. Eff (console :: CONSOLE | e) Unit
-main = launchAff_ $ bla 2
+main = EffConsole.log "hello"
 
 opts :: Options
 opts = defaultOptions { unwrapSingleConstructors = true }
@@ -63,3 +58,42 @@ wow req res = do
       let ok = toForeign { success: true }
       runFn2 _send res ok
       pure unit
+
+newtype PR = PR { owner :: String
+                , repo :: String
+                , number :: Int
+                }
+
+derive instance genericPR :: Generic PR _
+
+instance decodePR :: Decode PR where
+  decode = genericDecode opts
+
+setStatus :: forall e. Response -> Int -> Aff (express :: EXPRESS | e) Unit
+setStatus res n = liftEff $ runFn2 _setStatus res n
+
+send :: forall a e. Response -> a -> Aff (express :: EXPRESS | e) Unit
+send res x = liftEff $ runFn2 _send res x
+
+wowza :: forall e. Request -> Response -> Aff (console :: CONSOLE, express :: EXPRESS | e) Unit
+wowza req res = do
+  f_b <- liftEff (_getBody req)
+  let eb = runExcept $ decode f_b
+  case eb of
+    Left l -> do
+      log "ERROR: badly formed PR request."
+      setStatus res 400
+      send res (toForeign { success: false })
+    Right pr -> do
+      cs_ <- bla pr
+      case cs_ of
+        Left err -> do
+          setStatus res 400
+          send res (toForeign { success: false, error: err })
+        Right cs -> do
+          setStatus res 200
+          let ok = toForeign { success: true, comments: cs }
+          send res ok
+
+wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
+wowzaEff req res = launchAff_ (wowza req res)
