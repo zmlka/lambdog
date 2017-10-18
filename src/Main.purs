@@ -1,16 +1,26 @@
 module Main where
 
-import GitHub.Api
-import Prelude
 import Data.Either
-import Control.Monad.Aff (Aff, launchAff, launchAff_, runAff)
+import Debug.Trace
+import GitHub.Api
+import IsApproval
+import Prelude
+import Serverless.Request
+import Serverless.Response
+import Serverless.Types
+
+import Control.Monad.Aff (Aff, launchAff, launchAff_, liftEff', runAff)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Console as EffConsole
+import Control.Monad.Except (runExcept)
 import Data.Foreign (toForeign)
-import Debug.Trace (traceAny, traceShow)
-import IsApproval
+import Data.Foreign.Class (class Decode, decode)
+import Data.Foreign.Generic (defaultOptions, genericDecode)
+import Data.Foreign.Generic.Types (Options)
+import Data.Function.Uncurried (runFn2)
+import Data.Generic.Rep (class Generic)
 
 bla :: forall eff. Int -> Aff (console :: CONSOLE | eff) Unit
 bla n = do
@@ -30,7 +40,26 @@ checkPR n = launchAff_ (bla n)
 main :: forall e. Eff (console :: CONSOLE | e) Unit
 main = launchAff_ $ bla 2
 
--- | Just to check if we can use purescript.
-testy :: String -> String
-testy name = "Hello " <> name <> "! This string was assembled in Purescript!"
+opts :: Options
+opts = defaultOptions { unwrapSingleConstructors = true }
 
+newtype MyReq = MyReq { name :: String }
+derive instance genericMyReq :: Generic MyReq _
+
+instance decodeMyReq :: Decode MyReq where
+  decode = genericDecode opts
+
+wow :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
+wow req res = do
+  b <- _getBody req
+  let er = runExcept $ decode b
+  case er of
+    Left l -> do
+      EffConsole.log "ERROR"
+      pure unit
+    Right (MyReq r) -> do
+      EffConsole.log r.name
+      runFn2 _setStatus res 200
+      let ok = toForeign { success: true }
+      runFn2 _send res ok
+      pure unit
