@@ -24,6 +24,8 @@ import Data.Function.Uncurried (runFn2)
 import Data.Generic.Rep (class Generic)
 import Util
 
+import Data.Maybe
+
 bla :: forall eff. PR -> Aff eff (Either String (Array String))
 bla (PR pr) = do
   let prReq = toForeign pr
@@ -101,9 +103,13 @@ wowzaEff req res = launchAff_ (wowza req res)
 
 logConfigFile :: forall e. Aff e Unit
 logConfigFile = do
-  c <- reposGetContent (toForeign {owner: "zmlka", repo: "lambdog", path: "watching/zmlka/lambdog/master/config.yaml", ref: "jhh/github-yaml-file"})
-  _ <- traceAny c (\_ -> pure unit)
-  pure unit
+  c' <- reposGetContent (toForeign {owner: "zmlka", repo: "lambdog", path: "watching/zmlka/lambdog/master/config.yaml", ref: "jhh/github-yaml-file"})
+  case fileContent c' of
+    Just c -> do
+      let content = decodeBase64 c
+      _ <- traceAny content (\_ -> pure unit)
+      pure unit
+    Nothing -> pure unit
 
 logConf :: forall e. Eff e Unit
 logConf = launchAff_ logConfigFile

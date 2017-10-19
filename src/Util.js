@@ -1,1 +1,1 @@
-exports.decodeBase64 = atob;
+exports.decodeBase64 = function(s){ return Buffer.from(s, 'base64').toString(); };

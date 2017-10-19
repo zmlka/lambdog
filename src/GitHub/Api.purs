@@ -10,6 +10,7 @@ import Data.Foreign (F, Foreign, readArray, readString)
 import Data.Foreign.Index ((!))
 import Data.Traversable (traverse)
 import Util (decodeBase64)
+import Data.Maybe
 
 foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
 
@@ -47,8 +48,13 @@ commentStrings f = case runExcept (commentStrings_ f) of
   Left err -> Left "Bad JSON"
   Right ss -> Right ss
 
-fileContent :: Foreign -> F String
-fileContent f = do
+fileContent_ :: Foreign -> F String
+fileContent_ f = do
   c <- f ! "data" ! "content" >>= readString
   let cc = decodeBase64 c
   pure cc
+
+fileContent :: Foreign -> Maybe String
+fileContent f = case runExcept (fileContent_ f) of
+  Left e -> Nothing
+  Right s -> Just s
