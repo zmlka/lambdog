@@ -22,6 +22,7 @@ import Data.Foreign.Generic (defaultOptions, genericDecode)
 import Data.Foreign.Generic.Types (Options)
 import Data.Function.Uncurried (runFn2)
 import Data.Generic.Rep (class Generic)
+import Util
 
 bla :: forall eff. PR -> Aff eff (Either String (Array String))
 bla (PR pr) = do
@@ -97,3 +98,12 @@ wowza req res = do
 
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
 wowzaEff req res = launchAff_ (wowza req res)
+
+logConfigFile :: forall e. Aff e Unit
+logConfigFile = do
+  c <- reposGetContent (toForeign {owner: "zmlka", repo: "lambdog", path: "watching/zmlka/lambdog/master/config.yaml", ref: "jhh/github-yaml-file"})
+  _ <- traceAny c (\_ -> pure unit)
+  pure unit
+
+logConf :: forall e. Eff e Unit
+logConf = launchAff_ logConfigFile

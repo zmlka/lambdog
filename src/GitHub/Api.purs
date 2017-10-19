@@ -9,6 +9,7 @@ import Data.Either (Either(..))
 import Data.Foreign (F, Foreign, readArray, readString)
 import Data.Foreign.Index ((!))
 import Data.Traversable (traverse)
+import Util (decodeBase64)
 
 foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
 
@@ -45,3 +46,9 @@ commentStrings :: Foreign -> Either String (Array String)
 commentStrings f = case runExcept (commentStrings_ f) of
   Left err -> Left "Bad JSON"
   Right ss -> Right ss
+
+fileContent :: Foreign -> F String
+fileContent f = do
+  c <- f ! "data" ! "content" >>= readString
+  let cc = decodeBase64 c
+  pure cc
