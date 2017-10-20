@@ -12,11 +12,16 @@ import Data.Foreign (toForeign)
 import Debug.Trace (traceAny, traceShow)
 import Data.Array
 
+type User = String
 
-type Config =
-  {
-    deciders :: Array User 
-  }
+-- | A condition that need to be met regarding a group of users.
+-- | `AtLeast n` : needs `n` approvals from this group.
+-- | `All` : needs approvals from everyone in this group.
+data Condition
+  = AtLeast Int
+  | All
+
+type Config = Array { groupName :: String, groupUsers :: Array User, condition :: Condition }
 
 type Comment =
   {
@@ -29,17 +34,17 @@ shouldMerge1 :: Config -> Array Comment -> Boolean
 shouldMerge1 config comments =
   let aa =
         comments
-        # array.foldl (shouldMergeHelper) []
-        # array.length
+        # foldl (shouldMergeHelper1) []
+        # length
   in
-   aa >= array.length config
+   aa >= length config
 
 
 shouldMergeHelper1 :: Config -> Comment -> Comment
 shouldMergeHelper1 config comment =
   case config of
-    [] -> -- some error exit
-    (x::xs) -> if comment.user == x then x
+    [] -> ?lol -- some error exit
+    (x:xs) -> if comment.user == x then x
                else shouldMergeHelper xs comment
 
 
