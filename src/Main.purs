@@ -25,6 +25,8 @@ import Data.Foreign.Generic.Types (Options)
 import Data.Function.Uncurried (runFn2)
 import Data.Generic.Rep (class Generic)
 
+import Data.Yaml
+
 bla :: forall eff. PR -> Aff eff (Either String (Array String))
 bla (PR pr) = do
   let prReq = toForeign pr
@@ -107,6 +109,7 @@ logConfigFile = do
                      , configRepo: "lambdog"
                      , targetBranch: "master"
                      , configBranch: "jhh/github-yaml-file" }
+  log "config file:"
   log c
   pure unit
 
