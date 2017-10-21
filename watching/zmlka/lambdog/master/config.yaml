@@ -1,0 +1,6 @@
+---
+
+# define which approval groups need how many approvers
+approvergroups:
+  ops: all
+  dev: 2

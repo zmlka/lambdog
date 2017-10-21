@@ -50,5 +50,4 @@ var makeExport1 = function(f){
 exports._issuesGetForRepo = makeExport1(github.issues.getForRepo);
 exports._pullRequestsGetReviews = makeExport1(github.pullRequests.getReviews);
 exports._issuesGetComments = makeExport1(github.issues.getComments);
-
 exports._reposGetContent = makeExport1(github.repos.getContent);
