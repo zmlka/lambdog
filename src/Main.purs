@@ -1,6 +1,7 @@
 module Main where
 
 import Data.Either
+import Data.Maybe
 import Debug.Trace
 import GitHub.Api
 import IsApproval
@@ -8,6 +9,7 @@ import Prelude
 import Serverless.Request
 import Serverless.Response
 import Serverless.Types
+import Util
 
 import Control.Monad.Aff (Aff, launchAff, launchAff_, liftEff', runAff)
 import Control.Monad.Aff.Console (CONSOLE, log)
@@ -22,9 +24,6 @@ import Data.Foreign.Generic (defaultOptions, genericDecode)
 import Data.Foreign.Generic.Types (Options)
 import Data.Function.Uncurried (runFn2)
 import Data.Generic.Rep (class Generic)
-import Util
-
-import Data.Maybe
 
 bla :: forall eff. PR -> Aff eff (Either String (Array String))
 bla (PR pr) = do
@@ -101,15 +100,15 @@ wowza req res = do
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
 wowzaEff req res = launchAff_ (wowza req res)
 
-logConfigFile :: forall e. Aff e Unit
+logConfigFile :: forall e. Aff (console :: CONSOLE) Unit
 logConfigFile = do
-  c' <- reposGetContent (toForeign {owner: "zmlka", repo: "lambdog", path: "watching/zmlka/lambdog/master/config.yaml", ref: "jhh/github-yaml-file"})
-  case fileContent c' of
-    Just c -> do
-      let content = decodeBase64 c
-      _ <- traceAny content (\_ -> pure unit)
-      pure unit
-    Nothing -> pure unit
+  c <- getConfigFile { owner: "zmlka"
+                     , targetRepo: "lambdog"
+                     , configRepo: "lambdog"
+                     , targetBranch: "master"
+                     , configBranch: "jhh/github-yaml-file" }
+  log c
+  pure unit
 
-logConf :: forall e. Eff e Unit
+logConf :: forall e. Eff (console :: CONSOLE) Unit
 logConf = launchAff_ logConfigFile

@@ -1,16 +1,17 @@
 module GitHub.Api where
 
+import Data.Maybe
 import Prelude
 
-import Control.Monad.Aff (Aff)
+import Debug.Trace
+import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
-import Data.Foreign (F, Foreign, readArray, readString)
+import Data.Foreign (F, Foreign, readArray, readString, toForeign)
 import Data.Foreign.Index ((!))
 import Data.Traversable (traverse)
 import Util (decodeBase64)
-import Data.Maybe
 
 foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
 
@@ -48,13 +49,33 @@ commentStrings f = case runExcept (commentStrings_ f) of
   Left err -> Left "Bad JSON"
   Right ss -> Right ss
 
-fileContent_ :: Foreign -> F String
-fileContent_ f = do
-  c <- f ! "data" ! "content" >>= readString
-  let cc = decodeBase64 c
-  pure cc
+-- File Content
 
-fileContent :: Foreign -> Maybe String
-fileContent f = case runExcept (fileContent_ f) of
-  Left e -> Nothing
-  Right s -> Just s
+fileContent :: Foreign -> F String
+fileContent f = do
+  c <- f ! "data" ! "content" >>= readString
+  pure (decodeBase64 c)
+
+type RepoReq a = { owner :: String, repo :: String | a }
+
+-- | Get the string contents of a text-file in a repo.
+-- | `ref`: branch, e.g. "jhh/github-yaml"
+-- | `path`: the path to the file, e.g. "foo/bar/config.yaml"
+getFile :: forall e. RepoReq ( path :: String, ref :: String ) -> Aff e String
+getFile req = do
+  c' <- reposGetContent (toForeign req)
+  case runExcept (fileContent c') of
+    Right c -> pure c
+    Left err -> throwError (error (show err))
+
+-- | Gets the config file for the targetRepo inside the configRepo.
+-- | NOTE: Assumes both repos have the same owner.
+getConfigFile :: forall e a. { targetRepo :: String
+                             , configRepo :: String
+                             , owner :: String
+                             , targetBranch :: String
+                             , configBranch :: String } -> Aff e String
+getConfigFile r = getFile { owner: r.owner
+                          , repo: r.configRepo
+                          , path: "watching/" <> r.owner <> "/" <> r.targetRepo <> "/" <> r.targetBranch <> "/config.yaml"
+                          , ref: r.configBranch }
