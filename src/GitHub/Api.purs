@@ -13,40 +13,21 @@ import Data.Foreign.Index ((!))
 import Data.Traversable (traverse)
 import Util (decodeBase64)
 
-foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
+readComment :: Foreign -> F { user :: String, commentText :: String }
+readComment f = do
+  u <- f ! "user" ! "login" >>= readString
+  c <- f ! "body" >>= readString
+  pure { user: u, commentText: c }
 
-issuesGetForRepo :: forall eff. Foreign -> Aff eff Foreign
-issuesGetForRepo = fromEffFnAff <<< _issuesGetForRepo
-
-foreign import _pullRequestsGetReviews :: forall eff. Foreign -> EffFnAff eff Foreign
-
-pullRequestsGetReviews :: forall eff. Foreign -> Aff eff Foreign
-pullRequestsGetReviews = fromEffFnAff <<< _pullRequestsGetReviews
-
-foreign import _issuesGetComments :: forall eff. Foreign -> EffFnAff eff Foreign
-
-issuesGetComments :: forall eff. Foreign -> Aff eff Foreign
-issuesGetComments = fromEffFnAff <<< _issuesGetComments
-
-foreign import _reposGetContent :: forall eff. Foreign -> EffFnAff eff Foreign
-
-reposGetContent :: forall eff. Foreign -> Aff eff Foreign
-reposGetContent = fromEffFnAff <<< _reposGetContent
-
-commentString :: Foreign -> F String
-commentString f = do
-  s <- f ! "body"
-  readString s
-
-commentStrings_ :: Foreign -> F (Array String)
-commentStrings_ f = do
+readComments_ :: Foreign -> F (Array { user :: String, commentText :: String })
+readComments_ f = do
   dat <- f ! "data" >>= readArray
-  ss <- traverse commentString dat
+  ss <- traverse readComment dat
   pure ss
 
-commentStrings :: Foreign -> Either String (Array String)
-commentStrings f = case runExcept (commentStrings_ f) of
-  Left err -> Left "Bad JSON"
+readComments :: Foreign -> Either String (Array { user :: String, commentText :: String })
+readComments f = case runExcept (readComments_ f) of
+  Left err -> Left "Couldn't parse comments JSON."
   Right ss -> Right ss
 
 -- File Content
@@ -83,3 +64,25 @@ getConfigFile fileName r =
           , repo: r.configRepo
           , path: "watching/" <> r.owner <> "/" <> r.targetRepo <> "/" <> r.targetBranch <> "/" <> fileName
           , ref: r.configBranch }
+
+-- Imports
+
+foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
+issuesGetForRepo :: forall eff. Foreign -> Aff eff Foreign
+issuesGetForRepo = fromEffFnAff <<< _issuesGetForRepo
+
+foreign import _pullRequestsGetReviews :: forall eff. Foreign -> EffFnAff eff Foreign
+pullRequestsGetReviews :: forall eff. Foreign -> Aff eff Foreign
+pullRequestsGetReviews = fromEffFnAff <<< _pullRequestsGetReviews
+
+foreign import _issuesGetComments :: forall eff. Foreign -> EffFnAff eff Foreign
+issuesGetComments :: forall eff. Foreign -> Aff eff Foreign
+issuesGetComments = fromEffFnAff <<< _issuesGetComments
+
+foreign import _reposGetContent :: forall eff. Foreign -> EffFnAff eff Foreign
+reposGetContent :: forall eff. Foreign -> Aff eff Foreign
+reposGetContent = fromEffFnAff <<< _reposGetContent
+
+foreign import _pullRequestsMerge :: forall eff. Foreign -> EffFnAff eff Foreign
+pullRequestsMerge :: forall eff. Foreign -> Aff eff Foreign
+pullRequestsMerge = fromEffFnAff <<< _pullRequestsMerge

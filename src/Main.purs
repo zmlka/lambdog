@@ -20,13 +20,13 @@ import Data.Foreign.Generic.Types (Options)
 import Data.Generic.Rep (class Generic)
 import Serverless.Request (body)
 import Serverless.Response (send, setStatus)
-import ShouldMerge (getRepoConfig)
+import ShouldMerge (getRepoConfig, shouldMerge)
 
-bla :: forall eff. PR -> Aff eff (Array String)
-bla (PR pr) = do
+pullReqComments :: forall eff. PR -> Aff eff (Array { user :: String, commentText :: String })
+pullReqComments (PR pr) = do
   let prReq = toForeign pr
   comments <- issuesGetComments prReq
-  let _cs = commentStrings comments
+  let _cs = readComments comments
   case _cs of
     Left err -> throwError (error "Error decoding comment.")
     Right cs -> pure cs
@@ -58,12 +58,22 @@ badRequest res err = do
   setStatus res 400
   send res (toForeign { success: false, error: err })
 
-wowza :: forall e. Request -> Response -> Aff (console :: CONSOLE, express :: EXPRESS | e) Unit
+wowza :: forall e. Request -> Response -> Aff (express :: EXPRESS | e) Unit
 wowza req res = do
-    pr <- body req
-    cs <- bla pr
+    PR pr <- body req
+    cs <- pullReqComments (PR pr)
+    config <- getRepoConfig { owner: pr.owner
+                            , targetRepo: pr.repo
+                            , configRepo: pr.repo
+                            , targetBranch: "master"
+                            , configBranch: "master" }
+    let mergeThatShit = shouldMerge cs config
+    _ <- if mergeThatShit
+           then do _ <- pullRequestsMerge (toForeign pr)
+                   pure unit
+           else pure unit
     setStatus res 200
-    send res (toForeign { success: true, comments: cs })
+    send res (toForeign { success: true, comments: cs, config: config })
   `catchError` \err -> badRequest res (show err)
 
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
