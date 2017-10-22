@@ -1,10 +1,18 @@
 module Serverless.Response where
 
 import Prelude
-import Data.Function.Uncurried (Fn3, Fn4, Fn2)
-import Data.Foreign (Foreign)
+import Control.Monad.Aff (Aff)
+import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (Error)
-import Serverless.Types (ExpressM, Response, CookieOptions)
+import Data.Foreign (Foreign)
+import Data.Function.Uncurried (Fn2, Fn3, Fn4, runFn2)
+import Serverless.Types (ExpressM, Response, CookieOptions, EXPRESS)
+
+setStatus :: forall e. Response -> Int -> Aff (express :: EXPRESS | e) Unit
+setStatus res n = liftEff $ runFn2 _setStatus res n
+
+send :: forall a e. Response -> a -> Aff (express :: EXPRESS | e) Unit
+send res x = liftEff $ runFn2 _send res x
 
 foreign import _cwd :: Unit -> String
 

@@ -1,11 +1,25 @@
 module Serverless.Request where
 
 import Prelude
-import Data.Foreign (Foreign)
-import Data.Function.Uncurried (Fn2(), Fn3())
-import Control.Monad.Eff (Eff, kind Effect)
-
 import Serverless.Types
+
+import Control.Monad.Aff (Aff, error, throwError)
+import Control.Monad.Eff (Eff, kind Effect)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Exception (Error)
+import Control.Monad.Except (runExcept)
+import Data.Either (Either(..))
+import Data.Foreign (Foreign)
+import Data.Foreign.Class (class Decode, decode)
+import Data.Function.Uncurried (Fn2, Fn3)
+
+body :: forall e a. Decode a => Request -> Aff (express :: EXPRESS | e) a
+body req = do
+  f_b <- liftEff (_getBody req)
+  let eb = runExcept $ decode f_b
+  case eb of
+    Left l -> throwError (error (show l))
+    Right r -> pure r
 
 foreign import _getRouteParam :: forall e a. Fn2 Request a (ExpressM e Foreign)
 
