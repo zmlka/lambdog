@@ -20,6 +20,7 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, lookup)
 import Data.Yaml (load)
 import GitHub.Api (getConfigFile)
+import Data.Foldable
 
 type User = String
 
@@ -33,14 +34,20 @@ data Condition
 derive instance genericCondition :: Generic Condition _
 instance showCondition :: Show Condition where show = genericShow
 
-type Config = Array { groupName :: String, users :: Array User, condition :: Condition }
+newtype GroupConfig = GroupConfig { groupName :: String, users :: Array User, condition :: Condition }
+
+derive instance genericGroupConfig :: Generic GroupConfig _
+instance showGroupConfig :: Show GroupConfig where show = genericShow
+
+newtype Config = Config (Array GroupConfig)
+
+derive instance genericConfig :: Generic Config _
+instance showConfig :: Show Config where show = genericShow
 
 type Comment =
-  {
-    user :: String,
-    commentText :: String
+  { user :: String
+  , commentText :: String
   }
-
 
 {-
 shouldMerge1 :: Config -> Array Comment -> Boolean
@@ -51,9 +58,7 @@ shouldMerge1 config comments =
         # length
   in
    aa >= length config
--}
 
-{-
 shouldMergeHelper1 :: Config -> Comment -> Comment
 shouldMergeHelper1 config comment =
   case config of
@@ -120,12 +125,12 @@ yamlApprovalGroups s = do
 gn :: forall a l. Newtype a { groupName :: String | l } => a -> Tuple String a
 gn x = Tuple ((unwrap x).groupName) x
 
-combi :: ApprovalGroup -> Criterion -> Maybe { groupName :: String, users :: Array User, condition :: Condition }
+combi :: ApprovalGroup -> Criterion -> Maybe GroupConfig
 combi (ApprovalGroup a) (Criterion c) =
   if a.groupName == c.groupName
-     then Just { groupName: a.groupName
-               , users: a.users
-               , condition: c.condition }
+     then Just $ GroupConfig { groupName: a.groupName
+                             , users: a.users
+                             , condition: c.condition }
      else Nothing
 
 makeConfig :: Array ApprovalGroup -> Array Criterion -> Config
@@ -136,7 +141,7 @@ makeConfig as cs =
       go k = do a <- lookup k aM
                 c <- lookup k cM
                 combi a c
-  in catMaybes $ go <$> ks
+  in Config $ catMaybes $ go <$> ks
 
 -- | Combines two YAML files to produce a config.
 yamlConfig :: String -> String -> Either String Config
@@ -161,6 +166,10 @@ getRepoConfig repo = do
   case config of
     Left e -> throwError (error e)
     Right r -> pure r
+
+-- | Mocked for now, just searches for a single approve comment.
+shouldMerge :: Array Comment -> Config -> Boolean
+shouldMerge comments _ = any (\c -> c.commentText == "/approve") comments
 
 -- Tests
 
