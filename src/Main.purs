@@ -1,25 +1,21 @@
 module Main where
 
-import Debug.Trace
-import GitHub.Api
 import Prelude
-import Serverless.Types
 
 import Control.Monad.Aff (Aff, catchError, error, launchAff_, throwError)
-import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Console as EffConsole
-import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
 import Data.Foreign (toForeign)
-import Data.Foreign.Class (class Decode, decode)
+import Data.Foreign.Class (class Decode)
 import Data.Foreign.Generic (defaultOptions, genericDecode)
 import Data.Foreign.Generic.Types (Options)
 import Data.Generic.Rep (class Generic)
+import GitHub.Api (issuesGetComments, pullRequestsMerge, readComments)
 import Serverless.Request (body)
 import Serverless.Response (send, setStatus)
+import Serverless.Types (EXPRESS, ExpressM, Request, Response)
 import ShouldMerge (getRepoConfig, shouldMerge)
 
 pullReqComments :: forall eff. PR -> Aff eff (Array { user :: String, commentText :: String })
@@ -73,22 +69,8 @@ wowza req res = do
                    pure unit
            else pure unit
     setStatus res 200
-    send res (toForeign { success: true, comments: cs, config: config })
+    send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
   `catchError` \err -> badRequest res (show err)
 
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
 wowzaEff req res = launchAff_ (wowza req res)
-
-logConfigFile :: forall e. Aff (console :: CONSOLE) Unit
-logConfigFile = do
-  let repo = { owner: "zmlka"
-             , targetRepo: "lambdog"
-             , configRepo: "lambdog"
-             , targetBranch: "master"
-             , configBranch: "jhh/github-yaml-file" }
-  config <- getRepoConfig repo
-  let n = traceAny config \_ -> 1
-  pure unit
-
-logConf :: forall e. Eff (console :: CONSOLE) Unit
-logConf = launchAff_ logConfigFile
