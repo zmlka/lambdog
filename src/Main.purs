@@ -1,6 +1,6 @@
 module Main where
 
-import Data.Either (Either(..))
+import Debug.Trace
 import GitHub.Api
 import Prelude
 import Serverless.Request
@@ -14,14 +14,14 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Console as EffConsole
 import Control.Monad.Except (runExcept)
+import Data.Either (Either(..))
 import Data.Foreign (toForeign)
 import Data.Foreign.Class (class Decode, decode)
 import Data.Foreign.Generic (defaultOptions, genericDecode)
 import Data.Foreign.Generic.Types (Options)
 import Data.Function.Uncurried (runFn2)
 import Data.Generic.Rep (class Generic)
-
-import ShouldMerge (yamlCriterions)
+import ShouldMerge (getRepoConfig)
 
 bla :: forall eff. PR -> Aff eff (Either String (Array String))
 bla (PR pr) = do
@@ -100,15 +100,13 @@ wowzaEff req res = launchAff_ (wowza req res)
 
 logConfigFile :: forall e. Aff (console :: CONSOLE) Unit
 logConfigFile = do
-  c <- getConfigFile { owner: "zmlka"
-                     , targetRepo: "lambdog"
-                     , configRepo: "lambdog"
-                     , targetBranch: "master"
-                     , configBranch: "jhh/github-yaml-file" }
-  log "config file:"
-  log c
-  let kk = yamlCriterions c
-  log (show kk)
+  let repo = { owner: "zmlka"
+             , targetRepo: "lambdog"
+             , configRepo: "lambdog"
+             , targetBranch: "master"
+             , configBranch: "jhh/github-yaml-file" }
+  config <- getRepoConfig repo
+  let n = traceAny config \_ -> 1
   pure unit
 
 logConf :: forall e. Eff (console :: CONSOLE) Unit

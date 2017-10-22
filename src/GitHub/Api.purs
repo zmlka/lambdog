@@ -68,14 +68,18 @@ getFile req = do
     Right c -> pure c
     Left err -> throwError (error (show err))
 
--- | Gets the config file for the targetRepo inside the configRepo.
+-- | Gets a config file for the targetRepo inside the configRepo.
 -- | NOTE: Assumes both repos have the same owner.
-getConfigFile :: forall e a. { targetRepo :: String
-                             , configRepo :: String
-                             , owner :: String
-                             , targetBranch :: String
-                             , configBranch :: String } -> Aff e String
-getConfigFile r = getFile { owner: r.owner
-                          , repo: r.configRepo
-                          , path: "watching/" <> r.owner <> "/" <> r.targetRepo <> "/" <> r.targetBranch <> "/config.yaml"
-                          , ref: r.configBranch }
+getConfigFile
+  :: forall e a. String
+  -> { targetRepo :: String
+     , configRepo :: String
+     , owner :: String
+     , targetBranch :: String
+     , configBranch :: String }
+  -> Aff e String
+getConfigFile fileName r =
+  getFile { owner: r.owner
+          , repo: r.configRepo
+          , path: "watching/" <> r.owner <> "/" <> r.targetRepo <> "/" <> r.targetBranch <> "/" <> fileName
+          , ref: r.configBranch }
