@@ -1,9 +1,7 @@
 module GitHub.Api where
 
-import Data.Maybe
 import Prelude
 
-import Debug.Trace
 import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
 import Control.Monad.Except (runExcept)
@@ -52,7 +50,7 @@ getFile req = do
 -- | Gets a config file for the targetRepo inside the configRepo.
 -- | NOTE: Assumes both repos have the same owner.
 getConfigFile
-  :: forall e a. String
+  :: forall e. String
   -> { targetRepo :: String
      , configRepo :: String
      , owner :: String

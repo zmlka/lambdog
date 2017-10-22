@@ -1,12 +1,10 @@
 module Serverless.Request where
 
 import Prelude
-import Serverless.Types
+import Serverless.Types (EXPRESS, ExpressM, Request)
 
 import Control.Monad.Aff (Aff, error, throwError)
-import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
 import Data.Foreign (Foreign)

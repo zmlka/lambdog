@@ -20,7 +20,7 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, lookup)
 import Data.Yaml (load)
 import GitHub.Api (getConfigFile)
-import Data.Foldable
+import Data.Foldable (any)
 
 type User = String
 
@@ -85,7 +85,7 @@ condPair f u = do
     c <- f ! u >>= readCondition
     pure $ Criterion { groupName: u, condition: c }
   where
-    readCondition f = (AtLeast <$> readInt f) <|> readAll f
+    readCondition f_ = (AtLeast <$> readInt f) <|> readAll f_
 
 readCriterions :: Foreign -> F (Array Criterion)
 readCriterions f = do
