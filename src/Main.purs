@@ -17,6 +17,7 @@ import Serverless.Request (body)
 import Serverless.Response (send, setStatus)
 import Serverless.Types (EXPRESS, ExpressM, Request, Response)
 import ShouldMerge (getRepoConfig, shouldMerge)
+import GitHub.Webhook
 
 pullReqComments :: forall eff. PR -> Aff eff (Array { user :: String, commentText :: String })
 pullReqComments (PR pr) = do
@@ -56,20 +57,23 @@ badRequest res err = do
 
 wowza :: forall e. Request -> Response -> Aff (express :: EXPRESS | e) Unit
 wowza req res = do
-    PR pr <- body req
-    cs <- pullReqComments (PR pr)
-    config <- getRepoConfig { owner: pr.owner
-                            , targetRepo: pr.repo
-                            , configRepo: pr.repo
-                            , targetBranch: "master"
-                            , configBranch: "master" }
-    let mergeThatShit = shouldMerge cs config
-    _ <- if mergeThatShit
-           then do _ <- pullRequestsMerge (toForeign pr)
-                   pure unit
-           else pure unit
-    setStatus res 200
-    send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
+    PrEvent ev <- body req
+    if ev.action == "created"
+       then do let pr = {owner: ev.owner, repo: ev.repo, number: ev.number }
+               cs <- pullReqComments (PR pr)
+               config <- getRepoConfig { owner: ev.owner
+                                       , targetRepo: ev.repo
+                                       , configRepo: ev.repo
+                                       , targetBranch: "master"
+                                       , configBranch: "master" }
+               let mergeThatShit = shouldMerge cs config
+               _ <- if mergeThatShit
+                      then do _ <- pullRequestsMerge (toForeign pr)
+                              pure unit
+                      else pure unit
+               setStatus res 200
+               send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
+       else badRequest res "not comment created event."
   `catchError` \err -> badRequest res (show err)
 
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
