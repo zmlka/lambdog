@@ -2,6 +2,7 @@ module GitHub.Api where
 
 import Prelude
 
+import Debug.Trace
 import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
 import Control.Monad.Except (runExcept)

@@ -11,12 +11,17 @@ import Data.Foreign.Index ((!))
 import Data.Foreign.Class (class Decode)
 import Data.Traversable (traverse)
 import Util (decodeBase64)
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 
 newtype PrEvent = PrEvent { owner :: String
                           , repo :: String
                           , number :: Int
                           , action :: String
                           }
+
+derive instance genericPrEvent :: Generic PrEvent _
+instance showPrEvent :: Show PrEvent where show = genericShow
 
 {-
 

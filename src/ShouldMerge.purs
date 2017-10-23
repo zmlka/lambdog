@@ -1,13 +1,15 @@
 module ShouldMerge where
 
+import Debug.Trace
 import Prelude
 
 import Control.Alternative ((<|>))
 import Control.Monad.Aff (Aff, error, throwError)
-import Control.Monad.Except (runExcept)
+import Control.Monad.Except (catchError, runExcept, throwError)
 import Data.Array (catMaybes, nub)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
+import Data.Foldable (any)
 import Data.Foreign (F, Foreign, ForeignError(..), readArray, readInt, readString)
 import Data.Foreign.Index ((!))
 import Data.Foreign.Keys (keys)
@@ -20,7 +22,6 @@ import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, lookup)
 import Data.Yaml (load)
 import GitHub.Api (getConfigFile)
-import Data.Foldable (any)
 
 type User = String
 
@@ -82,10 +83,10 @@ readAll f = do
 
 condPair :: Foreign -> UserGroupId -> F Criterion
 condPair f u = do
-    c <- f ! u >>= readCondition
+    c <- (f ! u >>= readCondition) `catchError` \e -> throwError (NEL.singleton (ForeignError ("condPair, error at key: " <> u <> " : " <> show e)))
     pure $ Criterion { groupName: u, condition: c }
   where
-    readCondition f_ = (AtLeast <$> readInt f) <|> readAll f_
+    readCondition f_ = (AtLeast <$> readInt f_) <|> readAll f_
 
 readCriterions :: Foreign -> F (Array Criterion)
 readCriterions f = do
@@ -97,6 +98,7 @@ readCriterions f = do
 yamlCriterions :: String -> Either String (Array Criterion)
 yamlCriterions s = do
   f <- load s
+  let n = traceAny f \_ -> 1
   lmap show (runExcept (readCriterions f))
 
 newtype ApprovalGroup = ApprovalGroup { groupName :: String
@@ -146,6 +148,9 @@ makeConfig as cs =
 -- | Combines two YAML files to produce a config.
 yamlConfig :: String -> String -> Either String Config
 yamlConfig cY aY = do
+  let n = trace cY \_ -> 1
+      m = trace aY \_ -> 2
+      nm = n + m
   a <- yamlApprovalGroups aY
   c <- yamlCriterions cY
   pure (makeConfig a c)
@@ -160,11 +165,13 @@ getRepoConfig :: forall e.
 getRepoConfig repo = do
   crit <- getConfigFile "config.yaml"
                         repo
+          `catchError` \err -> throwError (error ("Error in getting crit: " <> show err))
   approvers <- getConfigFile "approvers.yaml"
                              repo
+               `catchError` \err -> throwError (error ("Error in getting approvers: " <> show err))
   let config = yamlConfig crit approvers
   case config of
-    Left e -> throwError (error e)
+    Left e -> throwError (error ("Error in getRepoConfig: " <> e))
     Right r -> pure r
 
 -- | Mocked for now, just searches for a single approve comment.
