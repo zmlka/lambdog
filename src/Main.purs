@@ -3,6 +3,7 @@ module Main where
 import Prelude
 
 import Control.Monad.Aff (Aff, catchError, error, launchAff_, throwError)
+import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Console as EffConsole
@@ -17,6 +18,7 @@ import Serverless.Request (body)
 import Serverless.Response (send, setStatus)
 import Serverless.Types (EXPRESS, ExpressM, Request, Response)
 import ShouldMerge (getRepoConfig, shouldMerge)
+import GitHub.Webhook
 
 pullReqComments :: forall eff. PR -> Aff eff (Array { user :: String, commentText :: String })
 pullReqComments (PR pr) = do
@@ -54,23 +56,33 @@ badRequest res err = do
   setStatus res 400
   send res (toForeign { success: false, error: err })
 
-wowza :: forall e. Request -> Response -> Aff (express :: EXPRESS | e) Unit
+wowza :: forall e. Request -> Response -> Aff (console :: CONSOLE, express :: EXPRESS | e) Unit
 wowza req res = do
-    PR pr <- body req
-    cs <- pullReqComments (PR pr)
-    config <- getRepoConfig { owner: pr.owner
-                            , targetRepo: pr.repo
-                            , configRepo: pr.repo
-                            , targetBranch: "master"
-                            , configBranch: "master" }
-    let mergeThatShit = shouldMerge cs config
-    _ <- if mergeThatShit
-           then do _ <- pullRequestsMerge (toForeign pr)
-                   pure unit
-           else pure unit
-    setStatus res 200
-    send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
-  `catchError` \err -> badRequest res (show err)
+    PrEvent ev <- body req
+    log (show (PrEvent ev))
+    if ev.action == "created"
+       then do let pr = {owner: ev.owner, repo: ev.repo, number: ev.number }
+               log "REACTING"
+               cs <- pullReqComments (PR pr)
+               log (show (_.commentText <$> cs))
+               config <- getRepoConfig { owner: ev.owner
+                                       , targetRepo: ev.repo
+                                       , configRepo: ev.repo
+                                       , targetBranch: "master"
+                                       , configBranch: "master" }
+               log (show config)
+               let mergeThatShit = shouldMerge cs config
+               log (if mergeThatShit then "MERGING!" else "Not merging.")
+               _ <- if mergeThatShit
+                      then do _ <- pullRequestsMerge (toForeign pr)
+                              pure unit
+                      else pure unit
+               setStatus res 200
+               send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
+       else badRequest res "not comment created event."
+  `catchError` \err -> do log "There was an error:"
+                          log (show err)
+                          badRequest res (show err)
 
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
 wowzaEff req res = launchAff_ (wowza req res)
