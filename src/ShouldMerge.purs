@@ -1,6 +1,5 @@
 module ShouldMerge where
 
-import Debug.Trace
 import Prelude
 
 import Control.Alternative ((<|>))
@@ -98,7 +97,6 @@ readCriterions f = do
 yamlCriterions :: String -> Either String (Array Criterion)
 yamlCriterions s = do
   f <- load s
-  let n = traceAny f \_ -> 1
   lmap show (runExcept (readCriterions f))
 
 newtype ApprovalGroup = ApprovalGroup { groupName :: String
@@ -148,9 +146,6 @@ makeConfig as cs =
 -- | Combines two YAML files to produce a config.
 yamlConfig :: String -> String -> Either String Config
 yamlConfig cY aY = do
-  let n = trace cY \_ -> 1
-      m = trace aY \_ -> 2
-      nm = n + m
   a <- yamlApprovalGroups aY
   c <- yamlCriterions cY
   pure (makeConfig a c)
