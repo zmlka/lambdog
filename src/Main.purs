@@ -62,17 +62,13 @@ wowza req res = do
     log (show (PrEvent ev))
     if ev.action == "created"
        then do let pr = {owner: ev.owner, repo: ev.repo, number: ev.number }
-               log "REACTING"
                cs <- pullReqComments (PR pr)
-               log (show (_.commentText <$> cs))
                config <- getRepoConfig { owner: ev.owner
                                        , targetRepo: ev.repo
                                        , configRepo: ev.repo
                                        , targetBranch: "master"
                                        , configBranch: "master" }
-               log (show config)
                let mergeThatShit = shouldMerge cs config
-               log (if mergeThatShit then "MERGING!" else "Not merging.")
                _ <- if mergeThatShit
                       then do _ <- pullRequestsMerge (toForeign pr)
                               pure unit
