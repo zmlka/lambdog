@@ -5,10 +5,10 @@ import Prelude
 import Control.Alternative ((<|>))
 import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Except (catchError, runExcept, throwError)
-import Data.Array (catMaybes, nub)
+import Data.Array (catMaybes, nub, filter, length)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foldable (any)
+import Data.Foldable (any, elem)
 import Data.Foreign (F, Foreign, ForeignError(..), readArray, readInt, readString)
 import Data.Foreign.Index ((!))
 import Data.Foreign.Keys (keys)
@@ -48,24 +48,6 @@ type Comment =
   { user :: String
   , commentText :: String
   }
-
-{-
-shouldMerge1 :: Config -> Array Comment -> Boolean
-shouldMerge1 config comments =
-  let aa =
-        comments
-        # foldl (shouldMergeHelper1) []
-        # length
-  in
-   aa >= length config
-
-shouldMergeHelper1 :: Config -> Comment -> Comment
-shouldMergeHelper1 config comment =
-  case config of
-    [] -> ?lol -- some error exit
-    (x:xs) -> if comment.user == x then x
-               else shouldMergeHelper xs comment
--}
 
 type UserGroupId = String
 
@@ -173,6 +155,28 @@ getRepoConfig repo = do
 shouldMerge :: Array Comment -> Config -> Boolean
 shouldMerge comments _ = any (\c -> c.commentText == "/approve") comments
 
+
+groupOk :: Array Comment -> GroupConfig -> Boolean
+groupOk comments (GroupConfig config) =
+  let
+    removeIrrelevantComments :: Array User -> Array Comment -> Array Comment
+    removeIrrelevantComments cfg comments =
+      comments
+      # filter (\c -> c.commentText == "/approve")
+      # filter (\c -> elem c.user config.users)
+      # nub
+  in
+   case config.condition of
+     AtLeast n ->
+       comments
+       # removeIrrelevantComments config.users
+       # length >= config.condition
+     All ->
+      comments
+      # removeIrrelevantComments config.users
+      # length == length config.users
+     _ ->
+       false
 -- Tests
 
 testCriterionYaml :: String
@@ -204,3 +208,28 @@ testApprovers = yamlApprovalGroups testApproversYaml
 
 testConfig :: Either String Config
 testConfig = yamlConfig testCriterionYaml testApproversYaml
+
+-- 
+-- groupOk (GroupConfig { groupName: "dev", users: ["james"], condition: AtLeast 1})
+--         [{user: "james", commentText: "/approve"}]
+-- 
+-- (edited)
+-- groupOk (GroupConfig { groupName: "dev"
+--                      , users: ["james", "martin"]
+--                      , condition: AtLeast 1})
+--         [ {user: "martin", commentText: "lol"}
+--         , {user: "james", commentText: "what?"}
+--         , {user: "martin", commentText: "/approve"}
+--         ]
+-- 
+-- should also return true
+-- 
+-- groupOk (GroupConfig { groupName: "dev"
+--                      , users: ["james", "martin"]
+--                      , condition: All})
+--         [ {user: "martin", commentText: "lol"}
+--         , {user: "james", commentText: "what?"}
+--         , {user: "martin", commentText: "/approve"}
+--         ]
+-- 
+-- should return false
