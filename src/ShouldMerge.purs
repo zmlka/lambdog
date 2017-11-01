@@ -155,7 +155,6 @@ getRepoConfig repo = do
 shouldMerge :: Array Comment -> Config -> Boolean
 shouldMerge comments _ = any (\c -> c.commentText == "/approve") comments
 
-
 groupOk :: Array Comment -> GroupConfig -> Boolean
 groupOk comments (GroupConfig config) =
   let
@@ -209,27 +208,25 @@ testApprovers = yamlApprovalGroups testApproversYaml
 testConfig :: Either String Config
 testConfig = yamlConfig testCriterionYaml testApproversYaml
 
--- 
--- groupOk (GroupConfig { groupName: "dev", users: ["james"], condition: AtLeast 1})
---         [{user: "james", commentText: "/approve"}]
--- 
--- (edited)
--- groupOk (GroupConfig { groupName: "dev"
---                      , users: ["james", "martin"]
---                      , condition: AtLeast 1})
---         [ {user: "martin", commentText: "lol"}
---         , {user: "james", commentText: "what?"}
---         , {user: "martin", commentText: "/approve"}
---         ]
--- 
--- should also return true
--- 
--- groupOk (GroupConfig { groupName: "dev"
---                      , users: ["james", "martin"]
---                      , condition: All})
---         [ {user: "martin", commentText: "lol"}
---         , {user: "james", commentText: "what?"}
---         , {user: "martin", commentText: "/approve"}
---         ]
--- 
--- should return false
+{-
+groupOk [{user: "james", commentText: "/approve"}] (GroupConfig { groupName: "dev", users: ["james"], condition: AtLeast 1})
+
+groupOk (GroupConfig { groupName: "dev"
+                     , users: ["james", "martin"]
+                     , condition: AtLeast 1})
+groupOk [ {user: "martin", commentText: "lol"}
+        , {user: "james", commentText: "what?"}
+        , {user: "martin", commentText: "/approve"}
+        ]
+        (GroupConfig { groupName: "dev"
+        , users: ["james", "martin"]
+        , condition: AtLeast 1})
+
+groupOk [ {user: "martin", commentText: "lol"}
+        , {user: "james", commentText: "what?"}
+        , {user: "martin", commentText: "/approve"}
+        ]
+        (GroupConfig { groupName: "dev"
+        , users: ["james", "martin"]
+        , condition: All})
+-}
