@@ -159,24 +159,24 @@ shouldMerge comments _ = any (\c -> c.commentText == "/approve") comments
 groupOk :: Array Comment -> GroupConfig -> Boolean
 groupOk comments (GroupConfig config) =
   let
-    removeIrrelevantComments :: Array User -> Array Comment -> Array Comment
+    removeIrrelevantComments :: Array User -> Array Comment -> Array String
     removeIrrelevantComments cfg comments =
       comments
       # filter (\c -> c.commentText == "/approve")
       # filter (\c -> elem c.user config.users)
+      # map (\c -> c.user)
       # nub
   in
    case config.condition of
      AtLeast n ->
        comments
        # removeIrrelevantComments config.users
-       # length >= config.condition
+       # length >>> (\x -> x >= n)
      All ->
-      comments
-      # removeIrrelevantComments config.users
-      # length == length config.users
-     _ ->
-       false
+       comments
+       # removeIrrelevantComments config.users
+       # length >>> (\x -> length config.users == x)
+
 -- Tests
 
 testCriterionYaml :: String
