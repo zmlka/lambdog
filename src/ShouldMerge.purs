@@ -171,11 +171,11 @@ groupOk comments (GroupConfig config) =
      AtLeast n ->
        comments
        # removeIrrelevantComments config.users
-       # length >>> (\x -> x >= n)
+       # length >>> (_ >= n)
      All ->
        comments
        # removeIrrelevantComments config.users
-       # length >>> (\x -> length config.users == x)
+       # length >>> (_ == length config.users)
 
 -- Tests
 
