@@ -8,7 +8,7 @@ import Control.Monad.Except (catchError, runExcept, throwError)
 import Data.Array (catMaybes, nub, filter, length)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foldable (any, elem)
+import Data.Foldable (any, elem, foldl)
 import Data.Foreign (F, Foreign, ForeignError(..), readArray, readInt, readString)
 import Data.Foreign.Index ((!))
 import Data.Foreign.Keys (keys)
@@ -151,9 +151,10 @@ getRepoConfig repo = do
     Left e -> throwError (error ("Error in getRepoConfig: " <> e))
     Right r -> pure r
 
--- | Mocked for now, just searches for a single approve comment.
 shouldMerge :: Array Comment -> Config -> Boolean
-shouldMerge comments _ = any (\c -> c.commentText == "/approve") comments
+shouldMerge comments (Config config) =
+  let checkedConfigs = map (\cfg -> groupOk comments cfg) config in
+  foldl (&&) true checkedConfigs
 
 groupOk :: Array Comment -> GroupConfig -> Boolean
 groupOk comments (GroupConfig config) =
@@ -196,9 +197,9 @@ testApproversYaml = """---
 ops:
 - zmlka
 
-# Developpers
+# veloppers
 dev:
-- jameshaydon
+- jaameshaydon
 - zmlka
 """
 
@@ -211,9 +212,6 @@ testConfig = yamlConfig testCriterionYaml testApproversYaml
 {-
 groupOk [{user: "james", commentText: "/approve"}] (GroupConfig { groupName: "dev", users: ["james"], condition: AtLeast 1})
 
-groupOk (GroupConfig { groupName: "dev"
-                     , users: ["james", "martin"]
-                     , condition: AtLeast 1})
 groupOk [ {user: "martin", commentText: "lol"}
         , {user: "james", commentText: "what?"}
         , {user: "martin", commentText: "/approve"}
@@ -229,4 +227,10 @@ groupOk [ {user: "martin", commentText: "lol"}
         (GroupConfig { groupName: "dev"
         , users: ["james", "martin"]
         , condition: All})
+
+shouldMerge [{user: "james", commentText: "/approve"}] (config [(GroupConfig { groupName: "dev", users: ["james"], condition: AtLeast 1})])
+
+
+shouldMerge [{user: "james", commentText: "/approve"}] (config [(GroupConfig { groupName: "dev", users: ["james"], condition: AtLeast 1})], [(GroupConfig { groupName: "ops", users: ["james", "martin"], condition: All})])
+
 -}
