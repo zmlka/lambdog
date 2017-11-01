@@ -20,6 +20,9 @@ import Serverless.Types (EXPRESS, ExpressM, Request, Response)
 import ShouldMerge (getRepoConfig, shouldMerge)
 import GitHub.Webhook
 
+import Data.Symbol (SProxy(..))
+import Data.Record.Builder
+
 pullReqComments :: forall eff. PR -> Aff eff (Array { user :: String, commentText :: String })
 pullReqComments (PR pr) = do
   let prReq = toForeign pr
@@ -82,3 +85,11 @@ wowza req res = do
 
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
 wowzaEff req res = launchAff_ (wowza req res)
+
+foo :: { biz :: Boolean, bar :: String, baz :: Int } -> Int
+foo {baz} = baz + baz
+
+klo :: { biz :: Boolean, baz :: Int } -> { biz :: Boolean, baz :: Int, bar :: String }
+klo x = insert (SProxy :: SProxy "name") "hello"
+
+--boo = foo <<< {biz: _, bar: _, baz: _} <<< { biz: _, bar: "hello", baz: _}
