@@ -197,7 +197,7 @@ testApproversYaml = """---
 ops:
 - zmlka
 
-# veloppers
+# Dveloppers
 dev:
 - jaameshaydon
 - zmlka
