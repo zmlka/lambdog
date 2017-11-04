@@ -8,8 +8,10 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Console as EffConsole
 import Data.Either (Either(..))
+import Data.Foldable (find)
 import Data.Foreign (toForeign)
-import GitHub.Api (Comment, issuesGetComments, pullRequestsMerge, readComments)
+import Data.Maybe (Maybe)
+import GitHub.Api (Comment(..), issuesCreateComment, issuesGetComments, pullRequestsMerge, readComments)
 import GitHub.Webhook (PrEvent(..))
 import Serverless.Request (body)
 import Serverless.Response (send, setStatus)
@@ -37,6 +39,9 @@ pullReqComments pr = do
     Left err -> throwError (error "Error decoding comment.")
     Right cs -> pure cs
 
+getFirstLambdogComment :: Array Comment -> Maybe Comment
+getFirstLambdogComment = find (\(Comment c) -> c.user == "lambdog")
+
 wowza :: forall e. Request -> Response -> Aff (console :: CONSOLE, express :: EXPRESS | e) Unit
 wowza req res = do
     PrEvent ev <- body req
@@ -54,6 +59,8 @@ wowza req res = do
                  pure unit
          else do setStatus res 200
                  send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
+    let stat = getFirstLambdogComment cs
+    _ <- issuesCreateComment (toForeign { owner: pr.owner, repo: pr.repo, number: pr.number, body: ":dog: WOOF. This is lambdog. I'll be managing this PR. I'm waiting for `/approve`s from ..." })
     pure unit
   `catchError` \err -> do log "There was an error:"
                           log (show err)

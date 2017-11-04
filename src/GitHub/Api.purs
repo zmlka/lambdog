@@ -78,22 +78,32 @@ getConfigFile fileName r =
 
 -- Foreign imports
 
+-- Issues
+
 foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
 issuesGetForRepo :: forall eff. Foreign -> Aff eff Foreign
 issuesGetForRepo = fromEffFnAff <<< _issuesGetForRepo
-
-foreign import _pullRequestsGetReviews :: forall eff. Foreign -> EffFnAff eff Foreign
-pullRequestsGetReviews :: forall eff. Foreign -> Aff eff Foreign
-pullRequestsGetReviews = fromEffFnAff <<< _pullRequestsGetReviews
 
 foreign import _issuesGetComments :: forall eff. Foreign -> EffFnAff eff Foreign
 issuesGetComments :: forall eff. Foreign -> Aff eff Foreign
 issuesGetComments = fromEffFnAff <<< _issuesGetComments
 
-foreign import _reposGetContent :: forall eff. Foreign -> EffFnAff eff Foreign
-reposGetContent :: forall eff. Foreign -> Aff eff Foreign
-reposGetContent = fromEffFnAff <<< _reposGetContent
+foreign import _issuesCreateComment :: forall eff. Foreign -> EffFnAff eff Foreign
+issuesCreateComment :: forall eff. Foreign -> Aff eff Foreign
+issuesCreateComment = fromEffFnAff <<< _issuesCreateComment
+
+-- Pull requests
+
+foreign import _pullRequestsGetReviews :: forall eff. Foreign -> EffFnAff eff Foreign
+pullRequestsGetReviews :: forall eff. Foreign -> Aff eff Foreign
+pullRequestsGetReviews = fromEffFnAff <<< _pullRequestsGetReviews
 
 foreign import _pullRequestsMerge :: forall eff. Foreign -> EffFnAff eff Foreign
 pullRequestsMerge :: forall eff. Foreign -> Aff eff Foreign
 pullRequestsMerge = fromEffFnAff <<< _pullRequestsMerge
+
+-- Files
+
+foreign import _reposGetContent :: forall eff. Foreign -> EffFnAff eff Foreign
+reposGetContent :: forall eff. Foreign -> Aff eff Foreign
+reposGetContent = fromEffFnAff <<< _reposGetContent
