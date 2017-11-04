@@ -13,8 +13,10 @@ import Data.Foreign.Index ((!))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Traversable (traverse)
-import Util (decodeBase64)
+import GitHub.Api (Comment, issuesGetComments, pullRequestsMerge, readComments)
+import Util (decodeBase64, err)
 
+-- | Pull request webhook events.
 data Event
   = NewPrComment
   | NewPr
@@ -39,5 +41,9 @@ instance decodePrEvent :: Decode PrEvent where
     action <- f ! "action" >>= readString
     e <- (f ! "comment" *> pure NewPr) <|> (f ! "pull_request" *> pure NewPrComment)
     case action of
-      "created" -> pure $ PrEvent { owner: owner, repo: repo, number: number, event: e }
-      _ -> throwError "Not an event we are interested in."
+      "created" -> pure $ PrEvent { owner: owner
+                                  , repo: repo
+                                  , number: number
+                                  , event: e
+                                  }
+      _ -> err "Not an event we are interested in."
