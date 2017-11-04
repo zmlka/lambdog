@@ -35,3 +35,8 @@ npm install -g @google-cloud/functions-emulator
 functions-emulator start
 functions-emulator call http --data='{"json": "payload here"}'
 ```
+
+View the logs:
+```
+functions-emulator logs read
+```
