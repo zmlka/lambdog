@@ -3,18 +3,11 @@ module GitHub.Webhook where
 import Prelude
 
 import Control.Alternative ((<|>))
-import Control.Monad.Aff (Aff, error, throwError)
-import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
-import Control.Monad.Except (runExcept)
-import Data.Either (Either(..))
-import Data.Foreign (F, Foreign, readArray, readInt, readString, toForeign)
+import Data.Foreign (F, Foreign, readInt, readString)
 import Data.Foreign.Class (class Decode)
 import Data.Foreign.Index ((!))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Traversable (traverse)
-import GitHub.Api (Comment, issuesGetComments, pullRequestsMerge, readComments)
-import Util (decodeBase64, err)
 
 -- | Pull request webhook events.
 data Event
@@ -34,6 +27,7 @@ derive instance genericPrEvent :: Generic PrEvent _
 instance showPrEvent :: Show PrEvent where show = genericShow
 
 -- | Decode an IssueCommentEvent event.
+-- | But check that it is a comment on an issue corresponding to a PR.
 -- | Example payload:
 -- | https://developer.github.com/v3/activity/events/types/#issuecommentevent
 decodeIssueComment :: Foreign -> F PrEvent
@@ -43,6 +37,8 @@ decodeIssueComment f = do
   o <- f ! "repository" ! "owner" ! "login" >>= readString
   r <- f ! "repository" ! "name" >>= readString
   n <- f ! "issue"      ! "number" >>= readInt
+  -- This is just to make sure this is a comment on a PR:
+  _ <- f ! "issue" ! "pull_request" ! "url" >>= readString
   pure $ PrEvent { owner: o, repo: r, number: n, event: NewPrComment }
 
 -- | Decode a PullRequestEvent.
