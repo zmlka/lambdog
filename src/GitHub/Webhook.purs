@@ -33,17 +33,23 @@ newtype PrEvent = PrEvent { owner :: String
 derive instance genericPrEvent :: Generic PrEvent _
 instance showPrEvent :: Show PrEvent where show = genericShow
 
+decodeIssueComment :: Foreign -> F PrEvent
+decodeIssueComment f = do
+  _ <- f ! "comment"
+  _ <- f ! "action" >>= readString -- TODO: filter actions we are interested in.
+  o <- f ! "repository" ! "owner" ! "login" >>= readString
+  r <- f ! "repository" ! "name" >>= readString
+  n <- f ! "issue"      ! "number" >>= readInt
+  pure $ PrEvent { owner: o, repo: r, number: n, event: NewPrComment }
+
+decodeNewPr :: Foreign -> F PrEvent
+decodeNewPr f = do
+  _ <- f ! "pull_request"
+  _ <- f ! "action" >>= readString -- TODO: filter actions we are interested in.
+  n <- f ! "pull_request" ! "number" >>= readInt
+  o  <- f ! "repository" ! "owner" ! "login" >>= readString
+  r   <- f ! "repository" ! "name" >>= readString
+  pure $ PrEvent { owner: o, repo: r, number: n, event: NewPr }
+
 instance decodePrEvent :: Decode PrEvent where
-  decode f = do
-    owner  <- f ! "repository" ! "owner" ! "login" >>= readString
-    repo   <- f ! "repository" ! "name" >>= readString
-    number <- f ! "issue"      ! "number" >>= readInt
-    action <- f ! "action" >>= readString
-    e <- (f ! "comment" *> pure NewPr) <|> (f ! "pull_request" *> pure NewPrComment)
-    case action of
-      "created" -> pure $ PrEvent { owner: owner
-                                  , repo: repo
-                                  , number: number
-                                  , event: e
-                                  }
-      _ -> err "Not an event we are interested in."
+  decode f = (decodeNewPr f) <|> (decodeIssueComment f)
