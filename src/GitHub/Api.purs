@@ -18,6 +18,7 @@ type User = String
 
 -- | A comment by a user on a pull request.
 newtype Comment = Comment { user :: User
+                          , id :: String
                           , commentText :: String
                           }
 
@@ -28,7 +29,8 @@ readComment :: Foreign -> F Comment
 readComment f = do
   u <- f ! "user" ! "login" >>= readString
   c <- f ! "body" >>= readString
-  pure $ Comment { user: u, commentText: c }
+  i <- f ! "id" >>= readString
+  pure $ Comment { user: u, commentText: c, id: i }
 
 readComments_ :: Foreign -> F (Array Comment)
 readComments_ f = do
@@ -91,6 +93,10 @@ issuesGetComments = fromEffFnAff <<< _issuesGetComments
 foreign import _issuesCreateComment :: forall eff. Foreign -> EffFnAff eff Foreign
 issuesCreateComment :: forall eff. Foreign -> Aff eff Foreign
 issuesCreateComment = fromEffFnAff <<< _issuesCreateComment
+
+foreign import _issuesEditComment :: forall eff. Foreign -> EffFnAff eff Foreign
+issuesEditComment :: forall eff. Foreign -> Aff eff Foreign
+issuesEditComment = fromEffFnAff <<< _issuesEditComment
 
 -- Pull requests
 
