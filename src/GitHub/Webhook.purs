@@ -33,6 +33,9 @@ newtype PrEvent = PrEvent { owner :: String
 derive instance genericPrEvent :: Generic PrEvent _
 instance showPrEvent :: Show PrEvent where show = genericShow
 
+-- | Decode an IssueCommentEvent event.
+-- | Example payload:
+-- | https://developer.github.com/v3/activity/events/types/#issuecommentevent
 decodeIssueComment :: Foreign -> F PrEvent
 decodeIssueComment f = do
   _ <- f ! "comment"
@@ -42,6 +45,9 @@ decodeIssueComment f = do
   n <- f ! "issue"      ! "number" >>= readInt
   pure $ PrEvent { owner: o, repo: r, number: n, event: NewPrComment }
 
+-- | Decode a PullRequestEvent.
+-- | Example payload:
+-- | https://developer.github.com/v3/activity/events/types/#pullrequestevent
 decodeNewPr :: Foreign -> F PrEvent
 decodeNewPr f = do
   _ <- f ! "pull_request"
