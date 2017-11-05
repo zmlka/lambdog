@@ -2,6 +2,7 @@ module GitHub.Webhook where
 
 import Prelude
 
+import Debug.Trace
 import Control.Alternative ((<|>))
 import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
@@ -38,6 +39,8 @@ instance showPrEvent :: Show PrEvent where show = genericShow
 -- | https://developer.github.com/v3/activity/events/types/#issuecommentevent
 decodeIssueComment :: Foreign -> F PrEvent
 decodeIssueComment f = do
+  let kk1 = trace "From github:" \_ -> 1
+  let kk2 = traceAny f \_ -> 1
   _ <- f ! "comment"
   _ <- f ! "action" >>= readString -- TODO: filter actions we are interested in.
   o <- f ! "repository" ! "owner" ! "login" >>= readString
