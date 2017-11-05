@@ -53,13 +53,26 @@ wowza req res = do
                             , configRepo: ev.repo
                             , targetBranch: "master"
                             , configBranch: "master" }
-    let mergeThatShit = shouldMerge cs config
-    _ <- if mergeThatShit
-         then do _ <- pullRequestsMerge (toForeign pr)
-                 pure unit
-         else do setStatus res 200
-                 send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
+    let feedback = shouldMerge cs config
     let stat = getFirstLambdogComment cs
+    case feedback of
+      Left ns -> do _ <- issuesCreateComment
+                          (toForeign { owner: pr.owner
+                                     , repo: pr.repo
+                                     , number: pr.number
+                                     , body: ":dog: WOOF. I still need stuff:\n\n" <> show ns
+                                     })
+                    setStatus res 200
+                    send res (toForeign { success: true, merged: false })
+      Right ps -> do _ <- pullRequestsMerge (toForeign pr)
+                     _ <- issuesCreateComment
+                          (toForeign { owner: pr.owner
+                                     , repo: pr.repo
+                                     , number: pr.number
+                                     , body: ":dog: WOOF. I merged!:\n\n" <> show ps
+                                     })
+                     setStatus res 200
+                     send res (toForeign { success: true, merged: true })
     case stat of
       Just _ -> pure unit
       Nothing -> do _ <- issuesCreateComment (toForeign { owner: pr.owner, repo: pr.repo, number: pr.number, body: ":dog: WOOF. This is lambdog. I'll be managing this PR. I'm waiting for `/approve`s from ..." })
