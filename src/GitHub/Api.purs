@@ -6,7 +6,7 @@ import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
-import Data.Foreign (F, Foreign, readArray, readString, toForeign)
+import Data.Foreign (F, Foreign, readArray, readInt, readString, toForeign)
 import Data.Foreign.Index ((!))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -29,8 +29,8 @@ readComment :: Foreign -> F Comment
 readComment f = do
   u <- f ! "user" ! "login" >>= readString
   c <- f ! "body" >>= readString
-  i <- f ! "id" >>= readString
-  pure $ Comment { user: u, commentText: c, id: i }
+  i <- f ! "id" >>= readInt
+  pure $ Comment { user: u, commentText: c, id: show i }
 
 readComments_ :: Foreign -> F (Array Comment)
 readComments_ f = do

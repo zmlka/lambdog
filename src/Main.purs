@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 
+import Debug.Trace
 import Control.Monad.Aff (Aff, catchError, error, launchAff_, throwError)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
@@ -43,7 +44,7 @@ getFirstLambdogComment :: Array Comment -> Maybe Comment
 getFirstLambdogComment = find (\(Comment c) -> c.user == "lambdog")
 
 statusComment :: forall e. PR -> Maybe Comment -> String -> Aff e Unit
-statusComment pr Nothing body = do
+statusComment pr Nothing body = trace ("status comment: " <> body) \_ -> do
   _ <- issuesCreateComment
          (toForeign { owner: pr.owner
                     , repo: pr.repo
@@ -51,7 +52,7 @@ statusComment pr Nothing body = do
                     , body: body
                     })
   pure unit
-statusComment pr (Just (Comment c)) body =
+statusComment pr (Just (Comment c)) body = trace ("status comment: " <> body) \_ ->
   if c.commentText == body
      then pure unit
      else do _ <- issuesEditComment
@@ -83,11 +84,6 @@ wowza req res = do
                      statusComment pr stat (":dog: WOOF. I merged!:\n\n" <> show ps)
                      setStatus res 200
                      send res (toForeign { success: true, merged: true })
-    case stat of
-      Just _ -> pure unit
-      Nothing -> do _ <- issuesCreateComment (toForeign { owner: pr.owner, repo: pr.repo, number: pr.number, body: ":dog: WOOF. This is lambdog. I'll be managing this PR. I'm waiting for `/approve`s from ..." })
-                    pure unit
-    pure unit
   `catchError` \err -> do log "There was an error:"
                           log (show err)
                           badRequest res (show err)
