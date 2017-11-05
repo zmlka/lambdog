@@ -18,6 +18,8 @@ A watchful GutHub bot that only takes commands from its approved owners.
 
 ## Deploy
 
+See [serverless documentation](https://serverless.com/framework/docs/providers/google/guide/quick-start/).
+
 Deploy as google cloud function:
 
 ```
