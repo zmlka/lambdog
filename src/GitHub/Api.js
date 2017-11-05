@@ -47,8 +47,14 @@ var makeExport1 = function(f){
     };
 };
 
+// Issues
 exports._issuesGetForRepo = makeExport1(github.issues.getForRepo);
-exports._pullRequestsGetReviews = makeExport1(github.pullRequests.getReviews);
 exports._issuesGetComments = makeExport1(github.issues.getComments);
-exports._reposGetContent = makeExport1(github.repos.getContent);
+exports._issuesCreateComment = makeExport1(github.issues.createComment);
+
+// Pull requests
+exports._pullRequestsGetReviews = makeExport1(github.pullRequests.getReviews);
 exports._pullRequestsMerge = makeExport1(github.pullRequests.merge);
+
+// Files
+exports._reposGetContent = makeExport1(github.repos.getContent);

@@ -2,29 +2,41 @@ module GitHub.Api where
 
 import Prelude
 
-import Debug.Trace
 import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
 import Data.Foreign (F, Foreign, readArray, readString, toForeign)
 import Data.Foreign.Index ((!))
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Traversable (traverse)
 import Util (decodeBase64)
 
-readComment :: Foreign -> F { user :: String, commentText :: String }
+-- | A user is identified with his GitHub username.
+type User = String
+
+-- | A comment by a user on a pull request.
+newtype Comment = Comment { user :: User
+                          , commentText :: String
+                          }
+
+derive instance genericComment :: Generic Comment _
+instance showComment :: Show Comment where show = genericShow
+
+readComment :: Foreign -> F Comment
 readComment f = do
   u <- f ! "user" ! "login" >>= readString
   c <- f ! "body" >>= readString
-  pure { user: u, commentText: c }
+  pure $ Comment { user: u, commentText: c }
 
-readComments_ :: Foreign -> F (Array { user :: String, commentText :: String })
+readComments_ :: Foreign -> F (Array Comment)
 readComments_ f = do
   dat <- f ! "data" >>= readArray
   ss <- traverse readComment dat
   pure ss
 
-readComments :: Foreign -> Either String (Array { user :: String, commentText :: String })
+readComments :: Foreign -> Either String (Array Comment)
 readComments f = case runExcept (readComments_ f) of
   Left err -> Left "Couldn't parse comments JSON."
   Right ss -> Right ss
@@ -36,7 +48,7 @@ fileContent f = do
   c <- f ! "data" ! "content" >>= readString
   pure (decodeBase64 c)
 
-type RepoReq a = { owner :: String, repo :: String | a }
+type RepoReq a = { owner :: User, repo :: String | a }
 
 -- | Get the string contents of a text-file in a repo.
 -- | `ref`: branch, e.g. "jhh/github-yaml"
@@ -54,7 +66,7 @@ getConfigFile
   :: forall e. String
   -> { targetRepo :: String
      , configRepo :: String
-     , owner :: String
+     , owner :: User
      , targetBranch :: String
      , configBranch :: String }
   -> Aff e String
@@ -64,24 +76,34 @@ getConfigFile fileName r =
           , path: "watching/" <> r.owner <> "/" <> r.targetRepo <> "/" <> r.targetBranch <> "/" <> fileName
           , ref: r.configBranch }
 
--- Imports
+-- Foreign imports
+
+-- Issues
 
 foreign import _issuesGetForRepo :: forall eff. Foreign -> EffFnAff eff Foreign
 issuesGetForRepo :: forall eff. Foreign -> Aff eff Foreign
 issuesGetForRepo = fromEffFnAff <<< _issuesGetForRepo
 
-foreign import _pullRequestsGetReviews :: forall eff. Foreign -> EffFnAff eff Foreign
-pullRequestsGetReviews :: forall eff. Foreign -> Aff eff Foreign
-pullRequestsGetReviews = fromEffFnAff <<< _pullRequestsGetReviews
-
 foreign import _issuesGetComments :: forall eff. Foreign -> EffFnAff eff Foreign
 issuesGetComments :: forall eff. Foreign -> Aff eff Foreign
 issuesGetComments = fromEffFnAff <<< _issuesGetComments
 
-foreign import _reposGetContent :: forall eff. Foreign -> EffFnAff eff Foreign
-reposGetContent :: forall eff. Foreign -> Aff eff Foreign
-reposGetContent = fromEffFnAff <<< _reposGetContent
+foreign import _issuesCreateComment :: forall eff. Foreign -> EffFnAff eff Foreign
+issuesCreateComment :: forall eff. Foreign -> Aff eff Foreign
+issuesCreateComment = fromEffFnAff <<< _issuesCreateComment
+
+-- Pull requests
+
+foreign import _pullRequestsGetReviews :: forall eff. Foreign -> EffFnAff eff Foreign
+pullRequestsGetReviews :: forall eff. Foreign -> Aff eff Foreign
+pullRequestsGetReviews = fromEffFnAff <<< _pullRequestsGetReviews
 
 foreign import _pullRequestsMerge :: forall eff. Foreign -> EffFnAff eff Foreign
 pullRequestsMerge :: forall eff. Foreign -> Aff eff Foreign
 pullRequestsMerge = fromEffFnAff <<< _pullRequestsMerge
+
+-- Files
+
+foreign import _reposGetContent :: forall eff. Foreign -> EffFnAff eff Foreign
+reposGetContent :: forall eff. Foreign -> Aff eff Foreign
+reposGetContent = fromEffFnAff <<< _reposGetContent
