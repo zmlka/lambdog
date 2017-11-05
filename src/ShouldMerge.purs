@@ -3,12 +3,12 @@ module ShouldMerge where
 import Prelude
 
 import Control.Alternative ((<|>))
-import Control.Monad.Aff (Aff, error, throwError)
+import Control.Monad.Aff (Aff, error)
 import Control.Monad.Except (catchError, runExcept, throwError)
 import Data.Array (catMaybes, nub, filter, length)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foldable (any, elem, foldl)
+import Data.Foldable (elem, foldl)
 import Data.Foreign (F, Foreign, ForeignError(..), readArray, readInt, readString)
 import Data.Foreign.Index ((!))
 import Data.Foreign.Keys (keys)
@@ -20,9 +20,7 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, lookup)
 import Data.Yaml (load)
-import GitHub.Api (getConfigFile)
-
-type User = String
+import GitHub.Api (Comment(..), User, getConfigFile)
 
 -- | A condition that need to be met regarding a group of users.
 -- | `AtLeast n` : needs `n` approvals from this group.
@@ -43,11 +41,6 @@ newtype Config = Config (Array GroupConfig)
 
 derive instance genericConfig :: Generic Config _
 instance showConfig :: Show Config where show = genericShow
-
-type Comment =
-  { user :: String
-  , commentText :: String
-  }
 
 type UserGroupId = String
 
@@ -162,9 +155,8 @@ groupOk comments (GroupConfig config) =
     removeIrrelevantComments :: Array User -> Array Comment -> Array String
     removeIrrelevantComments cfg comments =
       comments
-      # filter (\c -> c.commentText == "/approve")
-      # filter (\c -> elem c.user config.users)
-      # map (\c -> c.user)
+      # filter (\(Comment c) -> c.commentText == "/approve" && elem c.user config.users)
+      # map (\(Comment c) -> c.user)
       # nub
   in
    case config.condition of
