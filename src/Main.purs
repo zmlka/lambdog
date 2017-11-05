@@ -10,7 +10,7 @@ import Control.Monad.Eff.Console as EffConsole
 import Data.Either (Either(..))
 import Data.Foldable (find)
 import Data.Foreign (toForeign)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import GitHub.Api (Comment(..), issuesCreateComment, issuesGetComments, pullRequestsMerge, readComments)
 import GitHub.Webhook (PrEvent(..))
 import Serverless.Request (body)
@@ -60,7 +60,10 @@ wowza req res = do
          else do setStatus res 200
                  send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
     let stat = getFirstLambdogComment cs
-    _ <- issuesCreateComment (toForeign { owner: pr.owner, repo: pr.repo, number: pr.number, body: ":dog: WOOF. This is lambdog. I'll be managing this PR. I'm waiting for `/approve`s from ..." })
+    case stat of
+      Just _ -> pure unit
+      Nothing -> do _ <- issuesCreateComment (toForeign { owner: pr.owner, repo: pr.repo, number: pr.number, body: ":dog: WOOF. This is lambdog. I'll be managing this PR. I'm waiting for `/approve`s from ..." })
+                    pure unit
     pure unit
   `catchError` \err -> do log "There was an error:"
                           log (show err)
