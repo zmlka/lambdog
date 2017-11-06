@@ -2,7 +2,6 @@ module Main where
 
 import Prelude
 
-import Debug.Trace (trace)
 import Control.Monad.Aff (Aff, catchError, error, launchAff_, throwError)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
@@ -18,6 +17,7 @@ import Serverless.Request (body)
 import Serverless.Response (send, setStatus)
 import Serverless.Types (EXPRESS, ExpressM, Request, Response)
 import ShouldMerge (getRepoConfig, shouldMerge)
+import StatusComment (mergeMessage, stillNeedMessage)
 
 badRequest :: forall e. Response -> String -> Aff (express :: EXPRESS | e) Unit
 badRequest res err = do
@@ -44,7 +44,7 @@ getFirstLambdogComment :: Array Comment -> Maybe Comment
 getFirstLambdogComment = find (\(Comment c) -> c.user == "lambdog")
 
 statusComment :: forall e. PR -> Maybe Comment -> String -> Aff e Unit
-statusComment pr Nothing body = trace ("status comment: " <> body) \_ -> do
+statusComment pr Nothing body = do
   _ <- issuesCreateComment
          (toForeign { owner: pr.owner
                     , repo: pr.repo
@@ -52,7 +52,7 @@ statusComment pr Nothing body = trace ("status comment: " <> body) \_ -> do
                     , body: body
                     })
   pure unit
-statusComment pr (Just (Comment c)) body = trace ("status comment: " <> body) \_ ->
+statusComment pr (Just (Comment c)) body =
   if c.commentText == body
      then pure unit
      else do _ <- issuesEditComment
@@ -77,11 +77,11 @@ wowza req res = do
     let feedback = shouldMerge cs config
     let stat = getFirstLambdogComment cs
     case feedback of
-      Left ns -> do statusComment pr stat (":dog: WOOF. I still need stuff:\n\n" <> show ns)
+      Left ns -> do statusComment pr stat (stillNeedMessage ns)
                     setStatus res 200
                     send res (toForeign { success: true, merged: false })
       Right ps -> do _ <- pullRequestsMerge (toForeign pr)
-                     statusComment pr stat (":dog: WOOF. I merged!:\n\n" <> show ps)
+                     statusComment pr stat (mergeMessage ps)
                      setStatus res 200
                      send res (toForeign { success: true, merged: true })
   `catchError` \err -> do log "There was an error:"

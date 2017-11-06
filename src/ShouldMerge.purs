@@ -52,11 +52,6 @@ data NegFeedback
 derive instance genericNegFeedback :: Generic NegFeedback _
 instance showNegFeedback :: Show NegFeedback where show = genericShow
 
--- -- | Represents an entire negative feedback for a whole rule.
--- newtype NegRuleFeedback = NegRuleFeedback (Array NegFeedback)
--- derive instance genericNegRuleFeedback :: Generic NegRuleFeedback _
--- instance showNegRuleFeedback :: Show NegRuleFeedback where show = genericShow
-
 -- | A positive feedback is a condition and the set of users which approved
 -- | which made that condition hold.
 newtype PosFeedback = PosFeedback { groupName :: String
@@ -65,10 +60,6 @@ newtype PosFeedback = PosFeedback { groupName :: String
                                   }
 derive instance genericPosFeedback :: Generic PosFeedback _
 instance showPosFeedback :: Show PosFeedback where show = genericShow
-
--- newtype PosRuleFeedback = PosRuleFeedback (Array PosFeedback)
--- derive instance genericPosRuleFeedback :: Generic PosRuleFeedback _
--- instance showPosRuleFeedback :: Show PosRuleFeedback where show = genericShow
 
 -- | A data representation of the `config.yaml` file.
 newtype Config = Config (Array GroupConfig)
