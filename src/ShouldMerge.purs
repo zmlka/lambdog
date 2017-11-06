@@ -8,7 +8,7 @@ import Control.Monad.Except (catchError, runExcept, throwError)
 import Data.Array (catMaybes, nub, filter, length)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foldable (elem, foldl)
+import Data.Foldable (elem)
 import Data.Foreign (F, Foreign, readArray, readInt, readString)
 import Data.Foreign.Index ((!))
 import Data.Foreign.Keys (keys)
@@ -18,10 +18,10 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, lookup)
+import Data.Validation.Semigroup (V, invalid, unV)
 import Data.Yaml (load)
 import GitHub.Api (Comment(..), User, getConfigFile)
-import Util (err)
-import Data.Validation.Semigroup
+import Util (err, remove)
 
 -- | A condition that need to be met regarding a group of users.
 -- | `AtLeast n` : needs `n` approvals from this group.
@@ -94,7 +94,7 @@ groupOk comments (GroupConfig config) =
            else invalid [ NeedNumber
                             { groupName: config.groupName
                             , number: n - length approves } ]
-      All -> let needed = filter (_ `elem` approves) config.users
+      All -> let needed = remove (_ `elem` approves) config.users
              in if needed == []
                    then pure [ PosFeedback
                                  { groupName: config.groupName

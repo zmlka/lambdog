@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Debug.Trace
+import Debug.Trace (trace)
 import Control.Monad.Aff (Aff, catchError, error, launchAff_, throwError)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
