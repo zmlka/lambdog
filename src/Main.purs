@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 
+import Debug.Trace (trace)
 import Control.Monad.Aff (Aff, catchError, error, launchAff_, throwError)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
@@ -11,7 +12,7 @@ import Data.Either (Either(..))
 import Data.Foldable (find)
 import Data.Foreign (toForeign)
 import Data.Maybe (Maybe(..))
-import GitHub.Api (Comment(..), issuesCreateComment, issuesGetComments, pullRequestsMerge, readComments)
+import GitHub.Api (Comment(..), issuesCreateComment, issuesEditComment, issuesGetComments, pullRequestsMerge, readComments)
 import GitHub.Webhook (PrEvent(..))
 import Serverless.Request (body)
 import Serverless.Response (send, setStatus)
@@ -42,6 +43,26 @@ pullReqComments pr = do
 getFirstLambdogComment :: Array Comment -> Maybe Comment
 getFirstLambdogComment = find (\(Comment c) -> c.user == "lambdog")
 
+statusComment :: forall e. PR -> Maybe Comment -> String -> Aff e Unit
+statusComment pr Nothing body = trace ("status comment: " <> body) \_ -> do
+  _ <- issuesCreateComment
+         (toForeign { owner: pr.owner
+                    , repo: pr.repo
+                    , number: pr.number
+                    , body: body
+                    })
+  pure unit
+statusComment pr (Just (Comment c)) body = trace ("status comment: " <> body) \_ ->
+  if c.commentText == body
+     then pure unit
+     else do _ <- issuesEditComment
+                    (toForeign { owner: pr.owner
+                               , repo: pr.repo
+                               , id: c.id
+                               , body: body
+                               })
+             pure unit
+
 wowza :: forall e. Request -> Response -> Aff (console :: CONSOLE, express :: EXPRESS | e) Unit
 wowza req res = do
     PrEvent ev <- body req
@@ -53,18 +74,16 @@ wowza req res = do
                             , configRepo: ev.repo
                             , targetBranch: "master"
                             , configBranch: "master" }
-    let mergeThatShit = shouldMerge cs config
-    _ <- if mergeThatShit
-         then do _ <- pullRequestsMerge (toForeign pr)
-                 pure unit
-         else do setStatus res 200
-                 send res (toForeign { success: true, comments: cs, config: config, merged: mergeThatShit })
+    let feedback = shouldMerge cs config
     let stat = getFirstLambdogComment cs
-    case stat of
-      Just _ -> pure unit
-      Nothing -> do _ <- issuesCreateComment (toForeign { owner: pr.owner, repo: pr.repo, number: pr.number, body: ":dog: WOOF. This is lambdog. I'll be managing this PR. I'm waiting for `/approve`s from ..." })
-                    pure unit
-    pure unit
+    case feedback of
+      Left ns -> do statusComment pr stat (":dog: WOOF. I still need stuff:\n\n" <> show ns)
+                    setStatus res 200
+                    send res (toForeign { success: true, merged: false })
+      Right ps -> do _ <- pullRequestsMerge (toForeign pr)
+                     statusComment pr stat (":dog: WOOF. I merged!:\n\n" <> show ps)
+                     setStatus res 200
+                     send res (toForeign { success: true, merged: true })
   `catchError` \err -> do log "There was an error:"
                           log (show err)
                           badRequest res (show err)

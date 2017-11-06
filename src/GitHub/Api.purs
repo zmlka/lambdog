@@ -6,7 +6,7 @@ import Control.Monad.Aff (Aff, error, throwError)
 import Control.Monad.Aff.Compat (EffFnAff, fromEffFnAff)
 import Control.Monad.Except (runExcept)
 import Data.Either (Either(..))
-import Data.Foreign (F, Foreign, readArray, readString, toForeign)
+import Data.Foreign (F, Foreign, readArray, readInt, readString, toForeign)
 import Data.Foreign.Index ((!))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
@@ -18,6 +18,7 @@ type User = String
 
 -- | A comment by a user on a pull request.
 newtype Comment = Comment { user :: User
+                          , id :: String
                           , commentText :: String
                           }
 
@@ -28,7 +29,8 @@ readComment :: Foreign -> F Comment
 readComment f = do
   u <- f ! "user" ! "login" >>= readString
   c <- f ! "body" >>= readString
-  pure $ Comment { user: u, commentText: c }
+  i <- f ! "id" >>= readInt
+  pure $ Comment { user: u, commentText: c, id: show i }
 
 readComments_ :: Foreign -> F (Array Comment)
 readComments_ f = do
@@ -91,6 +93,10 @@ issuesGetComments = fromEffFnAff <<< _issuesGetComments
 foreign import _issuesCreateComment :: forall eff. Foreign -> EffFnAff eff Foreign
 issuesCreateComment :: forall eff. Foreign -> Aff eff Foreign
 issuesCreateComment = fromEffFnAff <<< _issuesCreateComment
+
+foreign import _issuesEditComment :: forall eff. Foreign -> EffFnAff eff Foreign
+issuesEditComment :: forall eff. Foreign -> Aff eff Foreign
+issuesEditComment = fromEffFnAff <<< _issuesEditComment
 
 -- Pull requests
 

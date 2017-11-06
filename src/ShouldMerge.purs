@@ -8,19 +8,20 @@ import Control.Monad.Except (catchError, runExcept, throwError)
 import Data.Array (catMaybes, nub, filter, length)
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
-import Data.Foldable (elem, foldl)
-import Data.Foreign (F, Foreign, ForeignError(..), readArray, readInt, readString)
+import Data.Foldable (elem)
+import Data.Foreign (F, Foreign, readArray, readInt, readString)
 import Data.Foreign.Index ((!))
 import Data.Foreign.Keys (keys)
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
-import Data.List.NonEmpty as NEL
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, lookup)
+import Data.Validation.Semigroup (V, invalid, unV)
 import Data.Yaml (load)
 import GitHub.Api (Comment(..), User, getConfigFile)
+import Util (err, remove)
 
 -- | A condition that need to be met regarding a group of users.
 -- | `AtLeast n` : needs `n` approvals from this group.
@@ -28,24 +29,93 @@ import GitHub.Api (Comment(..), User, getConfigFile)
 data Condition
   = AtLeast Int
   | All
-
 derive instance genericCondition :: Generic Condition _
 instance showCondition :: Show Condition where show = genericShow
 
-newtype GroupConfig = GroupConfig { groupName :: String, users :: Array User, condition :: Condition }
-
+newtype GroupConfig = GroupConfig { groupName :: String
+                                  , users :: Array User
+                                  , condition :: Condition
+                                  }
 derive instance genericGroupConfig :: Generic GroupConfig _
 instance showGroupConfig :: Show GroupConfig where show = genericShow
 
-newtype Config = Config (Array GroupConfig)
+-- | There are two sorts feedback:
+-- | - negative: rule didn't pass and here is why.
+-- | - positive: rule did pass and here is why.
 
+-- | Represents a piece of negative feedback, e.g.
+-- | - "Still need 2 approvals from dev"
+-- | - "Still need approvals from @andy, @sophie and @greg in dev"
+data NegFeedback
+  = NeedNumber { groupName :: String, number :: Int }
+  | NeedUsers { groupName :: String, users :: Array User }
+derive instance genericNegFeedback :: Generic NegFeedback _
+instance showNegFeedback :: Show NegFeedback where show = genericShow
+
+-- -- | Represents an entire negative feedback for a whole rule.
+-- newtype NegRuleFeedback = NegRuleFeedback (Array NegFeedback)
+-- derive instance genericNegRuleFeedback :: Generic NegRuleFeedback _
+-- instance showNegRuleFeedback :: Show NegRuleFeedback where show = genericShow
+
+-- | A positive feedback is a condition and the set of users which approved
+-- | which made that condition hold.
+newtype PosFeedback = PosFeedback { groupName :: String
+                                  , condition :: Condition
+                                  , users :: Array User
+                                  }
+derive instance genericPosFeedback :: Generic PosFeedback _
+instance showPosFeedback :: Show PosFeedback where show = genericShow
+
+-- newtype PosRuleFeedback = PosRuleFeedback (Array PosFeedback)
+-- derive instance genericPosRuleFeedback :: Generic PosRuleFeedback _
+-- instance showPosRuleFeedback :: Show PosRuleFeedback where show = genericShow
+
+-- | A data representation of the `config.yaml` file.
+newtype Config = Config (Array GroupConfig)
 derive instance genericConfig :: Generic Config _
 instance showConfig :: Show Config where show = genericShow
 
-type UserGroupId = String
+-- | The main function:
+-- | Given a list of PR comments and a config, decides if the PR should be
+-- | merged. Returns feedback relevant to decision.
+shouldMerge :: Array Comment -> Config -> Either (Array NegFeedback) (Array PosFeedback)
+shouldMerge comments (Config config) =
+    unV Left (Right <<< join) (traverse (groupOk comments) config)
 
-newtype Criterion = Criterion { groupName :: UserGroupId, condition :: Condition }
+groupOk :: Array Comment -> GroupConfig -> V (Array NegFeedback) (Array PosFeedback)
+groupOk comments (GroupConfig config) =
+    case config.condition of
+      AtLeast n ->
+        if length approves >= n
+           then pure [ PosFeedback
+                         { groupName: config.groupName
+                         , condition: config.condition
+                         , users: approves } ]
+           else invalid [ NeedNumber
+                            { groupName: config.groupName
+                            , number: n - length approves } ]
+      All -> let needed = remove (_ `elem` approves) config.users
+             in if needed == []
+                   then pure [ PosFeedback
+                                 { groupName: config.groupName
+                                 , condition: config.condition
+                                 , users: config.users } ]
+                   else invalid [ NeedUsers
+                                    { groupName: config.groupName
+                                    , users: needed } ]
+  where
+    -- Usernames of relevant approvals (deduped)
+    approves = comments
+      # filter (\(Comment c) -> c.commentText == "/approve" && elem c.user config.users)
+      # map (\(Comment c) -> c.user)
+      # nub
 
+--
+-- Code to get the YAML files for a repo and parse them into the corresponding
+-- datatypes follows.
+--
+
+newtype Criterion = Criterion { groupName :: String, condition :: Condition }
 derive instance newtypeCriterion :: Newtype Criterion _
 derive instance genericCriterion :: Generic Criterion _
 instance showCriterion :: Show Criterion where show = genericShow
@@ -53,11 +123,11 @@ instance showCriterion :: Show Criterion where show = genericShow
 readAll :: Foreign -> F Condition
 readAll f = do
   s <- readString f
-  if s == "all" then pure All else throwError (NEL.singleton (ForeignError "String as condition that wasn't 'all'."))
+  if s == "all" then pure All else err "String as condition that wasn't 'all'."
 
-condPair :: Foreign -> UserGroupId -> F Criterion
+condPair :: Foreign -> String -> F Criterion
 condPair f u = do
-    c <- (f ! u >>= readCondition) `catchError` \e -> throwError (NEL.singleton (ForeignError ("condPair, error at key: " <> u <> " : " <> show e)))
+    c <- (f ! u >>= readCondition) `catchError` \e -> err ("condPair, error at key: " <> u <> " : " <> show e)
     pure $ Criterion { groupName: u, condition: c }
   where
     readCondition f_ = (AtLeast <$> readInt f_) <|> readAll f_
@@ -143,31 +213,6 @@ getRepoConfig repo = do
   case config of
     Left e -> throwError (error ("Error in getRepoConfig: " <> e))
     Right r -> pure r
-
-shouldMerge :: Array Comment -> Config -> Boolean
-shouldMerge comments (Config config) =
-  let checkedConfigs = map (\cfg -> groupOk comments cfg) config in
-  foldl (&&) true checkedConfigs
-
-groupOk :: Array Comment -> GroupConfig -> Boolean
-groupOk comments (GroupConfig config) =
-  let
-    removeIrrelevantComments :: Array User -> Array Comment -> Array String
-    removeIrrelevantComments cfg comments =
-      comments
-      # filter (\(Comment c) -> c.commentText == "/approve" && elem c.user config.users)
-      # map (\(Comment c) -> c.user)
-      # nub
-  in
-   case config.condition of
-     AtLeast n ->
-       comments
-       # removeIrrelevantComments config.users
-       # \cs -> length cs >= n
-     All ->
-       comments
-       # removeIrrelevantComments config.users
-       # \cs -> length cs >= length config.users
 
 -- Tests
 
