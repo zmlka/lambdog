@@ -29,7 +29,7 @@ stillNeedMessage ns =
 negFb :: NegFeedback -> String
 negFb fp =
   case fp of
-    NeedNumber {groupName, number} -> "- ✘ - Misisng at least " <> show number <>
+    NeedNumber {groupName, number} -> "- ✘ - Missisng at least " <> show number <>
                                       " more approval from [" <> show groupName <> "](link_to_approvers.yaml).\n"
     NeedUsers {groupName, users} -> "- ✘ - Missing necesary approvals from group [" <> show groupName <>
                                     "](link_to_approvers.yaml). Specifically:" <> show users <> ".\n"
