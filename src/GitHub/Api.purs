@@ -20,6 +20,7 @@ type User = String
 newtype Comment = Comment { user :: User
                           , id :: String
                           , commentText :: String
+                          , url :: String
                           }
 
 derive instance genericComment :: Generic Comment _
@@ -30,7 +31,8 @@ readComment f = do
   u <- f ! "user" ! "login" >>= readString
   c <- f ! "body" >>= readString
   i <- f ! "id" >>= readInt
-  pure $ Comment { user: u, commentText: c, id: show i }
+  url <- f ! "url" >>= readString
+  pure $ Comment { user: u, commentText: c, id: show i, url: url }
 
 readComments_ :: Foreign -> F (Array Comment)
 readComments_ f = do

@@ -2,6 +2,7 @@ module StatusComment where
 
 import Prelude
 
+import Data.Foldable (fold)
 import ShouldMerge (NegFeedback(..), PosFeedback(..))
 
 -- What we actually want:
@@ -19,17 +20,15 @@ import ShouldMerge (NegFeedback(..), PosFeedback(..))
 
 mergeMessage :: Array PosFeedback -> String
 mergeMessage ps =
-  "mergeMessage:\n" <>
-  map posFb ps
+  "mergeMessage:\n" <> fold (map posFb ps)
 
 stillNeedMessage :: Array NegFeedback -> String
 stillNeedMessage ns =
-  "stillNeedMessage:\n" <>
-  map negFb ns
+  "stillNeedMessage:\n" <> fold (map negFb ns)
 
 negFb :: NegFeedback -> String
-negFb fb =
-  case fb of
+negFb fp =
+  case fp of
     NeedNumber {groupName, number} -> "- ✘ - Misisng at least " <> show number <>
                                       " more approval from [" <> show groupName <> "](link_to_approvers.yaml).\n"
     NeedUsers {groupName, users} -> "- ✘ - Missing necesary approvals from group [" <> show groupName <>
@@ -37,7 +36,7 @@ negFb fb =
 
 
 posFb :: PosFeedback -> String
-posFb fb =
+posFb (PosFeedback fb) =
   -- ideally we would have links to the approve comments also
   "- ✔ - Approvals for group [" <> show fb.groupName <>
   "](link_to_approvers.yaml) satisfied based on approves from: " <> show fb.users <> "."
