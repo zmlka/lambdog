@@ -18,7 +18,6 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, lookup)
-import Data.Validation.Semigroup (V, invalid, unV)
 import Data.Yaml (load)
 import GitHub.Api (Comment(..), User, getConfigFile)
 import Util (err, remove)
@@ -61,6 +60,11 @@ newtype PosFeedback = PosFeedback { groupName :: String
 derive instance genericPosFeedback :: Generic PosFeedback _
 instance showPosFeedback :: Show PosFeedback where show = genericShow
 
+data Feedback = Pos PosFeedback
+              | Neg NegFeedback
+derive instance genericFeedback :: Generic Feedback _
+instance showFeedback :: Show Feedback where show = genericShow
+
 -- | A data representation of the `config.yaml` file.
 newtype Config = Config (Array GroupConfig)
 derive instance genericConfig :: Generic Config _
@@ -69,31 +73,37 @@ instance showConfig :: Show Config where show = genericShow
 -- | The main function:
 -- | Given a list of PR comments and a config, decides if the PR should be
 -- | merged. Returns feedback relevant to decision.
-shouldMerge :: Array Comment -> Config -> Either (Array NegFeedback) (Array PosFeedback)
+shouldMerge :: Array Comment -> Config -> Either (Array Feedback) (Array PosFeedback)
 shouldMerge comments (Config config) =
-    unV Left (Right <<< join) (traverse (groupOk comments) config)
+    let fbs = map (groupOk comments) config
+    in case traverse pos fbs of
+         Just ps -> Right ps
+         Nothing -> Left fbs
+  where
+    pos (Pos p) = Just p
+    pos _ = Nothing
 
-groupOk :: Array Comment -> GroupConfig -> V (Array NegFeedback) (Array PosFeedback)
+groupOk :: Array Comment -> GroupConfig -> Feedback
 groupOk comments (GroupConfig config) =
     case config.condition of
       AtLeast n ->
         if length approves >= n
-           then pure [ PosFeedback
-                         { groupName: config.groupName
-                         , condition: config.condition
-                         , users: approves } ]
-           else invalid [ NeedNumber
-                            { groupName: config.groupName
-                            , number: n - length approves } ]
+           then Pos $ PosFeedback
+                        { groupName: config.groupName
+                        , condition: config.condition
+                        , users: approves }
+           else Neg $ NeedNumber
+                        { groupName: config.groupName
+                        , number: n - length approves }
       All -> let needed = remove (_ `elem` approves) config.users
              in if needed == []
-                   then pure [ PosFeedback
-                                 { groupName: config.groupName
-                                 , condition: config.condition
-                                 , users: config.users } ]
-                   else invalid [ NeedUsers
-                                    { groupName: config.groupName
-                                    , users: needed } ]
+                   then Pos $ PosFeedback
+                                { groupName: config.groupName
+                                , condition: config.condition
+                                , users: config.users }
+                   else Neg $ NeedUsers
+                                { groupName: config.groupName
+                                , users: needed }
   where
     -- Usernames of relevant approvals (deduped)
     approves = comments

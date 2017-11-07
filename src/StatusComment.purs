@@ -3,7 +3,7 @@ module StatusComment where
 import Prelude
 
 import Data.Foldable (fold)
-import ShouldMerge (NegFeedback(..), PosFeedback(..))
+import ShouldMerge (Feedback(..), NegFeedback(..), PosFeedback(..))
 
 -- What we actually want:
 --
@@ -22,9 +22,13 @@ mergeMessage :: Array PosFeedback -> String
 mergeMessage ps =
   "mergeMessage:\n" <> fold (map posFb ps)
 
-stillNeedMessage :: Array NegFeedback -> String
+stillNeedMessage :: Array Feedback -> String
 stillNeedMessage ns =
-  "stillNeedMessage:\n" <> fold (map negFb ns)
+  "stillNeedMessage:\n" <> fold (map feedback ns)
+
+feedback :: Feedback -> String
+feedback (Pos fb) = posFb fb
+feedback (Neg fb) = negFb fb
 
 negFb :: NegFeedback -> String
 negFb fp =
