@@ -3,11 +3,13 @@ module GitHub.Webhook where
 import Prelude
 
 import Control.Alternative ((<|>))
+import Control.Monad.Except (throwError)
 import Data.Foreign (F, Foreign, readInt, readString)
 import Data.Foreign.Class (class Decode)
 import Data.Foreign.Index ((!))
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
+import Util (err)
 
 -- | Pull request webhook events.
 data Event
@@ -49,9 +51,12 @@ decodeNewPr f = do
   _ <- f ! "pull_request"
   _ <- f ! "action" >>= readString -- TODO: filter actions we are interested in.
   n <- f ! "pull_request" ! "number" >>= readInt
-  o  <- f ! "repository" ! "owner" ! "login" >>= readString
-  r   <- f ! "repository" ! "name" >>= readString
-  pure $ PrEvent { owner: o, repo: r, number: n, event: NewPr }
+  state <- f ! "pull_request" ! "state" >>= readString
+  o <- f ! "repository" ! "owner" ! "login" >>= readString
+  r <- f ! "repository" ! "name" >>= readString
+  if state == "open"
+     then pure $ PrEvent { owner: o, repo: r, number: n, event: NewPr }
+     else err "Not interested in this event."
 
 instance decodePrEvent :: Decode PrEvent where
   decode f = (decodeNewPr f) <|> (decodeIssueComment f)

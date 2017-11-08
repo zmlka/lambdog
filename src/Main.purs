@@ -2,7 +2,7 @@ module Main where
 
 import Prelude
 
-import Control.Monad.Aff (Aff, catchError, error, launchAff_, throwError)
+import Control.Monad.Aff (Aff, catchError, error, launchAff_, message, throwError)
 import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
@@ -44,29 +44,27 @@ getFirstLambdogComment :: Array Comment -> Maybe Comment
 getFirstLambdogComment = find (\(Comment c) -> c.user == "lambdog")
 
 statusComment :: forall e. PR -> Maybe Comment -> String -> Aff e Unit
-statusComment pr Nothing body = do
-  _ <- issuesCreateComment
-         (toForeign { owner: pr.owner
-                    , repo: pr.repo
-                    , number: pr.number
-                    , body: body
-                    })
-  pure unit
+statusComment pr Nothing body =
+  issuesCreateComment
+    (toForeign { owner: pr.owner
+               , repo: pr.repo
+               , number: pr.number
+               , body: body
+               }) *> pure unit
 statusComment pr (Just (Comment c)) body =
   if c.commentText == body
      then pure unit
-     else do _ <- issuesEditComment
-                    (toForeign { owner: pr.owner
-                               , repo: pr.repo
-                               , id: c.id
-                               , body: body
-                               })
-             pure unit
+     else issuesEditComment
+            (toForeign { owner: pr.owner
+                       , repo: pr.repo
+                       , id: c.id
+                       , body: body
+                       }) *> pure unit
 
 wowza :: forall e. Request -> Response -> Aff (console :: CONSOLE, express :: EXPRESS | e) Unit
 wowza req res = do
-    PrEvent ev <- body req
-    log (show (PrEvent ev))
+    PrEvent ev <- body req `catchError` \e -> throwError (error ("Unreacognised github webhook event: " <> message e))
+    log $ "Dealing with PR event: " <> show (PrEvent ev)
     let pr = {owner: ev.owner, repo: ev.repo, number: ev.number }
     cs <- pullReqComments pr
     config <- getRepoConfig { owner: ev.owner
@@ -84,8 +82,7 @@ wowza req res = do
                      statusComment pr stat (mergeMessage ps)
                      setStatus res 200
                      send res (toForeign { success: true, merged: true })
-  `catchError` \err -> do log "There was an error:"
-                          log (show err)
+  `catchError` \err -> do log ("Didn't process this event: " <> message err)
                           badRequest res (show err)
 
 wowzaEff :: forall e. Request -> Response -> ExpressM (console :: CONSOLE | e) Unit
