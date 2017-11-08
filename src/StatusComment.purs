@@ -29,10 +29,11 @@ feedback :: Feedback -> String
 feedback fb =
   let msgBegin = "As this pull request is to the BRANCH_NAME branch, it must go through an approval process prior to being merged in. The following approvals are needed, as defined by the [configuration](link_to_config_file):\n\n"
       msgEnd = "\n Approvers can give their approval by commenting below with the string:\n `/approve`\n A merge can be cancelled or restarted by commenting below with the strings:\n `/nomerge` or `/domerge`"
+      msgMiddle = case fb of
+        Pos fb -> posFb fb
+        Neg fb -> negFb fb
   in
-   case fb of
-     Pos fb -> msgBegin <> posFb fb <> msgEnd
-     Neg fb -> msgBegin <> negFb fb <> msgEnd
+   msgBegin <> msgMiddle <> msgEnd
 
 negFb :: NegFeedback -> String
 negFb fp =
